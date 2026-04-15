@@ -1,0 +1,36 @@
+replicaCount: 1
+
+image:
+  repository: logging-strategy
+  tag: "0.1.0"
+  # Use Never when the image is built locally into the Minikube Docker daemon
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: NodePort
+  port: 80
+  # Fixed port for easy access: http://$(minikube ip):30080
+  nodePort: 30080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: logging-strategy.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

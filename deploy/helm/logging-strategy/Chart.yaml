@@ -1,0 +1,6 @@
+apiVersion: v2
+name: logging-strategy
+description: Static web UI for the logging strategy visualizer (Vite + React)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
