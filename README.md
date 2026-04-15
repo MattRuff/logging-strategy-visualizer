@@ -41,14 +41,14 @@ Open the printed local URL (typically `http://localhost:5173`).
 
 ## Docker image (GitHub Container Registry)
 
-On every push to **`main`** (and **`master`**), [GitHub Actions](.github/workflows/docker-publish.yml) builds the [`Dockerfile`](Dockerfile) and pushes to **GHCR**:
+On every push to **`main`** (and **`master`**), [GitHub Actions](.github/workflows/docker-publish.yml) builds the [`Dockerfile`](Dockerfile) and pushes to **GitHub Container Registry (GHCR)**:
 
-`ghcr.io/<github-username>/logging-strategy-visualizer:latest` (also tagged with the commit SHA and branch/tag name).
+`ghcr.io/mattruff/logging-strategy-visualizer:latest` (also tagged with the commit SHA and branch/tag name).
 
 Pull locally:
 
 ```bash
-docker pull ghcr.io/OWNER/logging-strategy-visualizer:latest
+docker pull ghcr.io/mattruff/logging-strategy-visualizer:latest
 ```
 
 The package may start **private** to your account. To let others pull without logging in: GitHub → **Packages** → this package → **Package settings** → **Change package visibility** → **Public** (or grant collaborators access).
