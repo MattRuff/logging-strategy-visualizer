@@ -58,6 +58,6 @@ describe("buildSheetLineItems", () => {
     expect(rows.some((r) => r.skuKey === "flex_node_row")).toBe(false);
     const flexStorage = rows.find((r) => r.lineKind === "flex_aggregate");
     expect(flexStorage?.displayType).toBe("Flex Storage");
-    expect(flexStorage?.description).toMatch(/Flex Tier Storage/);
+    expect(flexStorage?.description).toMatch(/^Flex Storage /);
   });
 });

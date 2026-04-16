@@ -19,17 +19,14 @@ const COSTS_SHEET = "Costs";
 
 const HEADERS = [
   "% of Total Logs",
+  "Name",
   "Description",
-  "Retention (months)",
   "Quantity Per Month",
   "Price (unit)",
   "Monthly",
   "Annual",
   "Notes",
   "skuKey",
-  "rowId",
-  "lineKind",
-  "displayType",
 ] as const;
 
 /** Older exports used pipeline/split kinds */
@@ -149,17 +146,14 @@ function migrateLegacyVolumeIntoSourceNodes(
 function lineItemToRow(row: LineItem): (string | number | null)[] {
   return [
     row.pctOfTotal ?? "",
+    row.nodeLabel ?? "",
     row.description,
-    row.retentionMonths ?? "",
     row.quantityPerMonth ?? "",
     row.unitPrice ?? "",
     row.monthly ?? "",
     row.annual ?? "",
     row.millionLinesNote,
     row.skuKey ?? "",
-    row.id,
-    row.lineKind,
-    row.displayType,
   ];
 }
 
@@ -190,15 +184,12 @@ export function exportStrategyXlsx(
   );
   allRows.push([
     "",
-    "Total",
     "",
+    "Total",
     "",
     "",
     Math.round(totals.m * 100) / 100,
     Math.round(totals.a * 100) / 100,
-    "",
-    "",
-    "",
     "",
     "",
   ]);

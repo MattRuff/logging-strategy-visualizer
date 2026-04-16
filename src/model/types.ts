@@ -47,8 +47,10 @@ export interface LineItem {
   /** Stable key for export / overrides */
   skuKey?: string;
   pctOfTotal: number | null;
+  /** Short product line (e.g. Standard Index 3, Flex Storage 30) */
   description: string;
-  retentionMonths: number | null;
+  /** Graph node label (user-facing name); “Name” column before Description in UI/export */
+  nodeLabel?: string;
   quantityPerMonth: number | null;
   unitPrice: number | null;
   monthly: number | null;

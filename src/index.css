@@ -571,6 +571,49 @@ body {
   font-size: 13px;
 }
 
+.sheet-table--resizable {
+  table-layout: fixed;
+}
+
+.sheet-table__th {
+  position: relative;
+  padding-right: 10px;
+  vertical-align: bottom;
+}
+
+.sheet-table__th-label {
+  display: block;
+  padding-right: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sheet-col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  background: transparent;
+  z-index: 2;
+}
+
+.sheet-col-resizer:hover,
+.sheet-col-resizer:focus-visible {
+  background: rgba(99, 44, 166, 0.12);
+}
+
+.sheet-col-resizer--active,
+.sheet-col-resizer:active {
+  background: rgba(99, 44, 166, 0.28);
+}
+
 .sheet-table th,
 .sheet-table td {
   border: 1px solid var(--dd-border);
@@ -674,6 +717,11 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+.sheet-name {
+  font-weight: 600;
+  color: var(--dd-text);
 }
 
 .sheet-desc-text {

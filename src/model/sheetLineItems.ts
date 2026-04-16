@@ -75,15 +75,29 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     const routeNodeId =
       flexLeaves.length === 1 ? flexLeaves[0].nodeId : undefined;
 
+    let flexStorageDescription: string;
+    if (flexLeaves.length === 0) {
+      flexStorageDescription = "Flex Storage";
+    } else if (flexLeaves.length === 1) {
+      const d = nearestFlexRetentionDays(
+        nodeById.get(flexLeaves[0].nodeId)?.data?.flexRetentionDays ?? 30
+      );
+      flexStorageDescription = `Flex Storage ${d}`;
+    } else {
+      flexStorageDescription = "Flex Storage (multiple)";
+    }
+
     return {
       id: "flex-storage-aggregate",
       lineKind: "flex_aggregate",
       displayType: "Flex Storage",
       skuKey: "flex_storage_aggregate",
       routeNodeId,
+      nodeLabel: routeNodeId
+        ? (nodeById.get(routeNodeId)?.data.label ?? "")
+        : "",
       pctOfTotal,
-      description: "Flex Tier Storage (all Flex nodes — 30-day buckets)",
-      retentionMonths: null,
+      description: flexStorageDescription,
       quantityPerMonth: Math.round(totalTbMo * 1000) / 1000,
       unitPrice: effUnit,
       monthly: flexMonthly,
@@ -122,7 +136,6 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       lineKind: "node",
       routeNodeId: nodeId,
       pctOfTotal: pct,
-      retentionMonths: null,
     };
 
     if (kind === "flex") {
@@ -144,10 +157,10 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       const monthly = ops * opRate;
       rows.push({
         ...base,
+        nodeLabel: node.data.label,
         displayType: "OP",
         skuKey: "observability_pipelines_plus",
-        description:
-          "Observability Pipelines Plus (1 OP per 1 Terabyte/day)",
+        description: "Observability Pipelines",
         quantityPerMonth: Math.round(effTbMo * 1000) / 1000,
         unitPrice: opRate,
         monthly,
@@ -166,9 +179,10 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       const monthly = Math.round(q * unit * 100) / 100;
       rows.push({
         ...base,
+        nodeLabel: node.data.label,
         displayType: "Ingest",
         skuKey: "log_ingestion",
-        description: "Datadog Log ingestion",
+        description: "Log ingestion",
         quantityPerMonth: q,
         unitPrice: unit,
         monthly,
@@ -189,9 +203,10 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       const monthly = Math.round(q * unit * 100) / 100;
       rows.push({
         ...base,
+        nodeLabel: node.data.label,
         displayType: "Standard",
         skuKey: `standard_${days}d`,
-        description: `Standard Tier: Indexed events: ${days} days (million log lines, per month)`,
+        description: `Standard Index ${days}`,
         quantityPerMonth: q,
         unitPrice: unit,
         monthly,
@@ -206,9 +221,10 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       const tbMo = Math.round(effTbMo * 1000) / 1000;
       rows.push({
         ...base,
+        nodeLabel: node.data.label,
         displayType: "Archive",
         skuKey: "archive",
-        description: node.data.label,
+        description: "Archive",
         quantityPerMonth: tbMo,
         unitPrice: 0,
         monthly: 0,
@@ -220,8 +236,9 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
 
     rows.push({
       ...base,
+      nodeLabel: node.data.label,
       displayType: "Ingest",
-      description: node.data.label,
+      description: "—",
       quantityPerMonth: null,
       unitPrice: null,
       monthly: null,
@@ -242,9 +259,9 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       lineKind: "flex_compute",
       displayType: "Flex Compute",
       skuKey: "flex_compute",
+      nodeLabel: "",
       pctOfTotal: null,
-      description: `Flex Tier Compute (${p.flexComputeTier.toUpperCase()})`,
-      retentionMonths: null,
+      description: `Flex Compute ${p.flexComputeTier.toUpperCase()}`,
       quantityPerMonth: null,
       unitPrice: m,
       monthly: m,

@@ -18,7 +18,7 @@ Open the printed local URL (typically `http://localhost:5173`).
 - **Palette**: Drag node types onto the canvas; connect handles; edit **%** on edges (compact chip on the line).
 - **Inspector**: **Flex compute** tier (global, XS–L). When a node is selected, edit label and retention (indexed / Flex).
 - **Cost sheet**:
-  - **One row per graph node** (BFS order), except **Flex** destinations share a single **Flex Storage** line (“Flex Tier Storage (all Flex nodes — 30-day buckets)”) with blended pricing; **Flex compute** is one row by tier. **Type** column: OP, Ingest, Standard, Flex Storage, Flex Compute, Archive.
+  - **One row per graph node** (BFS order), except **Flex** destinations share a single **Flex Storage** line with blended pricing; **Flex compute** is one row by tier. **Type** column: OP, Ingest, Standard, Flex Storage, Flex Compute, Archive. Columns **Name** (graph label) then **Description** (short line, e.g. `Standard Index 3`, `Flex Storage 30`) — same order in **Export .xlsx**.
   - **% of total**: editable for node rows; adjusts the **last edge** on the path from the root to match the target share.
   - **Unit $**: editable where a **pricing key** applies; writes an override (not the code default).
 - **Export .xlsx**: **Costs** sheet plus **`_strategy_model`** (JSON: graph, volumes, `pricingOverrides`, `flexComputeTier`). **Import** requires that model sheet for a full restore.

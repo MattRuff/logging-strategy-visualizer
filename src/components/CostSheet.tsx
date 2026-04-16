@@ -3,8 +3,9 @@ import {
   getCoreRowModel,
   useReactTable,
   createColumnHelper,
+  type ColumnSizingState,
 } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   FLEX_RETENTION_DAY_OPTIONS,
   nearestFlexRetentionDays,
@@ -32,6 +33,7 @@ function TypeBadge({ displayType }: { displayType: LineItem["displayType"] }) {
 }
 
 export function CostSheet() {
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const sheetLineItems = useStrategyStore((s) => s.sheetLineItems);
   const nodes = useStrategyStore((s) => s.nodes);
   const updateNodeData = useStrategyStore((s) => s.updateNodeData);
@@ -57,6 +59,7 @@ export function CostSheet() {
         size: 120,
       }),
       helper.accessor("pctOfTotal", {
+        size: 100,
         header: "% of total",
         cell: (ctx) => {
           const row = ctx.row.original;
@@ -90,7 +93,48 @@ export function CostSheet() {
         },
       }),
       helper.display({
+        id: "nodeLabel",
+        size: 160,
+        header: "Name",
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          if (row.lineKind === "flex_compute") {
+            return <span className="sheet-muted">—</span>;
+          }
+          if (row.lineKind === "flex_aggregate") {
+            const v = row.nodeLabel;
+            return v != null && v !== "" ? (
+              <span className="sheet-name">{v}</span>
+            ) : (
+              <span className="sheet-muted">—</span>
+            );
+          }
+          if (row.lineKind !== "node" || !row.routeNodeId) {
+            const v = row.nodeLabel;
+            return v != null && v !== "" ? (
+              <span className="sheet-name">{v}</span>
+            ) : (
+              <span className="sheet-muted">—</span>
+            );
+          }
+          return (
+            <input
+              className="sheet-input sheet-input--blue"
+              type="text"
+              defaultValue={row.nodeLabel ?? ""}
+              key={`${row.id}-name-${row.nodeLabel}`}
+              onBlur={(e) =>
+                updateNodeData(row.routeNodeId!, {
+                  label: e.target.value,
+                })
+              }
+            />
+          );
+        },
+      }),
+      helper.display({
         id: "description",
+        size: 240,
         header: "Description",
         cell: (ctx) => {
           const row = ctx.row.original;
@@ -123,53 +167,40 @@ export function CostSheet() {
               </div>
             );
           }
-          if (row.lineKind !== "node" || !row.routeNodeId) {
-            return <span className="sheet-input--blue">{row.description}</span>;
-          }
-          const node = nodes.find((n) => n.id === row.routeNodeId);
-          if (node?.data.kind === "index") {
-            const days = node.data.retentionDays ?? 3;
-            return (
-              <div className="sheet-desc-row">
-                <span className="sheet-desc-text">{row.description}</span>
-                <select
-                  className="sheet-select"
-                  value={days}
-                  onChange={(e) => {
-                    const d = Number(e.target.value);
-                    updateNodeData(row.routeNodeId!, {
-                      retentionDays: d,
-                      label: `Indexed ${d}d`,
-                    });
-                  }}
-                >
-                  <option value={3}>3d</option>
-                  <option value={7}>7d</option>
-                  <option value={15}>15d</option>
-                  <option value={30}>30d</option>
-                </select>
-              </div>
-            );
+          if (row.lineKind === "node" && row.routeNodeId) {
+            const node = nodes.find((n) => n.id === row.routeNodeId);
+            if (node?.data.kind === "index") {
+              const days = node.data.retentionDays ?? 3;
+              return (
+                <div className="sheet-desc-row">
+                  <span className="sheet-desc-text">{row.description}</span>
+                  <select
+                    className="sheet-select"
+                    value={days}
+                    onChange={(e) => {
+                      const d = Number(e.target.value);
+                      updateNodeData(row.routeNodeId!, {
+                        retentionDays: d,
+                        label: `Indexed ${d}d`,
+                      });
+                    }}
+                  >
+                    <option value={3}>3d</option>
+                    <option value={7}>7d</option>
+                    <option value={15}>15d</option>
+                    <option value={30}>30d</option>
+                  </select>
+                </div>
+              );
+            }
           }
           return (
-            <input
-              className="sheet-input sheet-input--blue"
-              defaultValue={row.description}
-              key={`${row.id}-desc`}
-              onBlur={(e) =>
-                updateNodeData(row.routeNodeId!, {
-                  label: e.target.value,
-                })
-              }
-            />
+            <span className="sheet-input--blue">{row.description}</span>
           );
         },
       }),
-      helper.accessor("retentionMonths", {
-        header: "Ret. mo",
-        cell: () => <span className="sheet-muted">—</span>,
-      }),
       helper.accessor("quantityPerMonth", {
+        size: 110,
         header: "Qty / mo",
         cell: (ctx) => (
           <span className="sheet-num sheet-num--readonly">
@@ -182,6 +213,7 @@ export function CostSheet() {
         ),
       }),
       helper.accessor("unitPrice", {
+        size: 96,
         header: "Unit $",
         cell: (ctx) => {
           const row = ctx.row.original;
@@ -209,6 +241,7 @@ export function CostSheet() {
         },
       }),
       helper.accessor("monthly", {
+        size: 104,
         header: "Monthly",
         cell: (ctx) => (
           <span className="sheet-num">
@@ -221,6 +254,7 @@ export function CostSheet() {
         ),
       }),
       helper.accessor("annual", {
+        size: 104,
         header: "Annual",
         cell: (ctx) => (
           <span className="sheet-num">
@@ -233,6 +267,7 @@ export function CostSheet() {
         ),
       }),
       helper.accessor("millionLinesNote", {
+        size: 140,
         header: "Notes",
         cell: (ctx) => (
           <span className="sheet-note">{ctx.row.original.millionLinesNote}</span>
@@ -250,6 +285,15 @@ export function CostSheet() {
   const table = useReactTable({
     data: sheetLineItems,
     columns,
+    state: { columnSizing },
+    onColumnSizingChange: setColumnSizing,
+    columnResizeMode: "onChange",
+    enableColumnResizing: true,
+    defaultColumn: {
+      minSize: 56,
+      maxSize: 640,
+      size: 120,
+    },
     getCoreRowModel: getCoreRowModel(),
   });
 
@@ -298,15 +342,37 @@ export function CostSheet() {
       ) : null}
 
       <div className="sheet-table-wrap">
-        <table className="sheet-table">
+        <table
+          className="sheet-table sheet-table--resizable"
+          style={{ width: table.getTotalSize() }}
+        >
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((h) => (
-                  <th key={h.id} style={{ width: h.getSize() }}>
-                    {h.isPlaceholder
-                      ? null
-                      : flexRender(h.column.columnDef.header, h.getContext())}
+                  <th
+                    key={h.id}
+                    className="sheet-table__th"
+                    style={{ width: h.getSize() }}
+                  >
+                    {h.isPlaceholder ? null : (
+                      <>
+                        <span className="sheet-table__th-label">
+                          {flexRender(h.column.columnDef.header, h.getContext())}
+                        </span>
+                        {h.column.getCanResize() ? (
+                          <button
+                            type="button"
+                            aria-label={`Resize ${h.column.id} column`}
+                            className={`sheet-col-resizer ${
+                              h.column.getIsResizing() ? "sheet-col-resizer--active" : ""
+                            }`}
+                            onMouseDown={h.getResizeHandler()}
+                            onTouchStart={h.getResizeHandler()}
+                          />
+                        ) : null}
+                      </>
+                    )}
                   </th>
                 ))}
               </tr>
@@ -316,7 +382,10 @@ export function CostSheet() {
             {table.getRowModel().rows.map((row) => (
               <tr key={row.id}>
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id}>
+                  <td
+                    key={cell.id}
+                    style={{ width: cell.column.getSize() }}
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
