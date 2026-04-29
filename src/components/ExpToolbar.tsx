@@ -163,7 +163,7 @@ export function ExpToolbar({
     const newId = newWorkloadId();
     newScenario();
     onWorkloadNameChange("Untitled scenario");
-    navigate(`/visualizer?id=${encodeURIComponent(newId)}`);
+    navigate(`${location.pathname}?id=${encodeURIComponent(newId)}`);
     close();
   };
 
@@ -187,7 +187,7 @@ export function ExpToolbar({
     try {
       await workloadApi.save(accessToken, newId, name.trim(), payload);
       onWorkloadNameChange(name.trim());
-      navigate(`/visualizer?id=${encodeURIComponent(newId)}`);
+      navigate(`${location.pathname}?id=${encodeURIComponent(newId)}`);
     } catch (err) {
       window.alert(`Save failed: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -280,6 +280,24 @@ export function ExpToolbar({
                 <MenuDivider />
                 <MenuItem
                   onClick={() => {
+                    close();
+                    navigate("/workloads");
+                  }}
+                  disabled={!accessToken}
+                >
+                  My scenarios
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    close();
+                    navigate("/archive");
+                  }}
+                >
+                  Browse archive
+                </MenuItem>
+                <MenuDivider />
+                <MenuItem
+                  onClick={() => {
                     fileRef.current?.click();
                     close();
                   }}
@@ -322,7 +340,7 @@ export function ExpToolbar({
                         }`}
                         onClick={() => {
                           close();
-                          navigate(`/visualizer?id=${encodeURIComponent(it.id)}`);
+                          navigate(`${location.pathname}?id=${encodeURIComponent(it.id)}`);
                         }}
                       >
                         <span className="menu-popover__list-item-name">{it.name}</span>
@@ -368,15 +386,6 @@ export function ExpToolbar({
                   disabled={currentPath === "/pricing"}
                 >
                   Pricing
-                </MenuItem>
-                <MenuDivider />
-                <MenuItem
-                  onClick={() => {
-                    navigate("/archive");
-                    close();
-                  }}
-                >
-                  Open from archive
                 </MenuItem>
                 <MenuDivider />
                 <MenuItem
@@ -442,23 +451,6 @@ export function ExpToolbar({
                   Signed in as
                   <div className="menu-popover__header-email">{email}</div>
                 </div>
-                <MenuItem
-                  onClick={() => {
-                    close();
-                    navigate("/workloads");
-                  }}
-                >
-                  My scenarios
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    close();
-                    navigate("/archive");
-                  }}
-                >
-                  Browse archive
-                </MenuItem>
-                <MenuDivider />
                 <MenuItem
                   danger
                   onClick={() => {
