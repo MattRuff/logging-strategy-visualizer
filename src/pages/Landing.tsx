@@ -1,11 +1,6 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useStrategyStore } from "@/state/strategyStore";
-import {
-  STRATEGY_TEMPLATES,
-  type StrategyTemplate,
-} from "@/templates/manifest";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
+
 
 const modes: {
   to: string;
@@ -51,37 +46,7 @@ const modes: {
 ];
 
 export function Landing() {
-  const navigate = useNavigate();
   const { accessToken, email, signIn, signOut } = useAuth();
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const applyTemplate = async (t: StrategyTemplate) => {
-    setError(null);
-    setLoadingId(t.id);
-    try {
-      useStrategyStore.getState().pushHistory();
-      const res = await fetch(t.file);
-      if (!res.ok) {
-        throw new Error(
-          `Could not download template (${res.status} ${res.statusText}).`
-        );
-      }
-      const buf = await res.arrayBuffer();
-      const { importStrategyXlsxFromBuffer } = await import("@/lib/xlsxSync");
-      await importStrategyXlsxFromBuffer(buf, useStrategyStore.setState);
-      const conflicts = useStrategyStore.getState().sheetConflicts;
-      if (conflicts.length > 0) {
-        setError(conflicts[0]);
-        return;
-      }
-      navigate("/hybrid");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load template.");
-    } finally {
-      setLoadingId(null);
-    }
-  };
 
   return (
     <div className="landing">
@@ -175,41 +140,6 @@ export function Landing() {
           </Link>
         ))}
       </div>
-
-      <section className="landing__templates">
-        <h2 className="landing__section-title">Start from a template</h2>
-        <p className="landing__section-sub">
-          Pre-built best-practice strategies. Pick one to seed the canvas and
-          cost sheet, then tune from there. Undo reverts to your previous
-          scenario.
-        </p>
-        {error && (
-          <p className="landing__templates-error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="landing__grid landing__grid--templates">
-          {STRATEGY_TEMPLATES.map((t) => {
-            const busy = loadingId === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                className="landing__card landing__card--template"
-                onClick={() => applyTemplate(t)}
-                disabled={loadingId !== null}
-              >
-                <span className="landing__card-subtitle">{t.subtitle}</span>
-                <h3 className="landing__card-title">{t.title}</h3>
-                <p className="landing__card-desc">{t.description}</p>
-                <span className="landing__card-cta">
-                  {busy ? "Loading…" : "Use this template →"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
 
       <footer className="landing__footer">
         <Link to="/admin" className="landing__settings">
