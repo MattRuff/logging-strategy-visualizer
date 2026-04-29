@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(aws-vault exec sso-ese-sandbox-account-admin -- *)",
+      "Bash(aws sts *)",
+      "Bash(npm audit *)",
+      "Bash(terraform validate *)"
+    ]
+  }
+}

@@ -4,7 +4,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useStrategyStore } from "@/state/strategyStore";
 import { useAuth } from "@/auth/AuthProvider";
 import { workloadApi, type WorkloadSummary } from "@/lib/workloadApi";
@@ -132,6 +132,8 @@ export function ExpToolbar({
 }: ExpToolbarProps) {
   const { accessToken, email, signIn, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const newScenario = useStrategyStore((s) => s.newScenario);
   const undo = useStrategyStore((s) => s.undo);
   const canUndo = useStrategyStore((s) => s.past.length > 0);
@@ -338,40 +340,78 @@ export function ExpToolbar({
 
         {/* View menu */}
         <MenuPopover trigger={<>View ▾</>} align="right">
-          {(close) => (
-            <>
-              <MenuItem
-                onClick={() => {
-                  undo();
-                  close();
-                }}
-                disabled={!canUndo}
-                shortcut="⌘Z"
-              >
-                Undo
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setLayoutOrientation(
-                    layoutOrientation === "horizontal" ? "vertical" : "horizontal"
-                  );
-                  close();
-                }}
-              >
-                {layoutOrientation === "horizontal"
-                  ? "Switch to vertical layout"
-                  : "Switch to horizontal layout"}
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  resetPricingDefaults();
-                  close();
-                }}
-              >
-                Reset pricing defaults
-              </MenuItem>
-            </>
-          )}
+          {(close) => {
+            const currentId = searchParams.get("id");
+            const idParam = currentId ? `?id=${encodeURIComponent(currentId)}` : "";
+            const currentPath = location.pathname;
+            const navigateTo = (path: string) => {
+              navigate(path + idParam);
+              close();
+            };
+            return (
+              <>
+                <div className="menu-popover__section-title">Switch view</div>
+                <MenuItem
+                  onClick={() => navigateTo("/visualizer")}
+                  disabled={currentPath === "/visualizer"}
+                >
+                  Visualizer
+                </MenuItem>
+                <MenuItem
+                  onClick={() => navigateTo("/hybrid")}
+                  disabled={currentPath === "/hybrid"}
+                >
+                  Hybrid
+                </MenuItem>
+                <MenuItem
+                  onClick={() => navigateTo("/pricing")}
+                  disabled={currentPath === "/pricing"}
+                >
+                  Pricing
+                </MenuItem>
+                <MenuDivider />
+                <MenuItem
+                  onClick={() => {
+                    navigate("/archive");
+                    close();
+                  }}
+                >
+                  Open from archive
+                </MenuItem>
+                <MenuDivider />
+                <MenuItem
+                  onClick={() => {
+                    undo();
+                    close();
+                  }}
+                  disabled={!canUndo}
+                  shortcut="⌘Z"
+                >
+                  Undo
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    setLayoutOrientation(
+                      layoutOrientation === "horizontal" ? "vertical" : "horizontal"
+                    );
+                    close();
+                  }}
+                >
+                  {layoutOrientation === "horizontal"
+                    ? "Switch to vertical layout"
+                    : "Switch to horizontal layout"}
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    resetPricingDefaults();
+                    close();
+                  }}
+                >
+                  Reset pricing defaults
+                </MenuItem>
+              </>
+            );
+          }}
         </MenuPopover>
 
         <input
