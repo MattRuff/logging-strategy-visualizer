@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars (gitignored) and adjust.
+
+project_name = "logging-strategy"
+
+aws_region = "us-east-1"
+
+enable_bucket_versioning = true
+
+# Default: CloudFront default certificate only (https://xxxx.cloudfront.net)
+enable_custom_domain = false
+# domain_name        = "app.example.com"
+# hosted_zone_id     = "Z0123456789ABCDEFGHIJ"
+
+# Optional: limit CloudFront edge locations for lower cost
+# price_class = "PriceClass_100"

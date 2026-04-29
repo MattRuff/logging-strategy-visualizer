@@ -17,11 +17,14 @@ const helper = createColumnHelper<LineItem>();
 
 const TYPE_BADGE_CLASS: Record<LineItem["displayType"], string> = {
   OP: "sheet-badge--op",
+  SIEM: "sheet-badge--siem",
   Ingest: "sheet-badge--ingest",
   "Flex Storage": "sheet-badge--flex-storage",
   "Flex Compute": "sheet-badge--flex-compute",
+  "Flex Starter": "sheet-badge--flex-starter",
   Standard: "sheet-badge--standard",
   Archive: "sheet-badge--archive",
+  "Archive Search": "sheet-badge--archive-search",
 };
 
 function TypeBadge({ displayType }: { displayType: LineItem["displayType"] }) {

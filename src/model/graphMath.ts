@@ -4,11 +4,17 @@ import {
 } from "./volumeDefaults";
 import type { StrategyEdge, StrategyNode } from "./types";
 
-const DEST_KINDS = new Set(["flex", "index", "archive"]);
+const DEST_KINDS = new Set([
+  "flex",
+  "flex_starter",
+  "index",
+  "archive",
+  "archive_search",
+]);
 
 export interface LeafVolume {
   nodeId: string;
-  kind: "flex" | "index" | "archive";
+  kind: "flex" | "flex_starter" | "index" | "archive" | "archive_search";
   fractionOfTotal: number;
   tbPerDay: number;
 }
@@ -112,7 +118,7 @@ export function computeLeafVolumes(
       if (kind && DEST_KINDS.has(kind)) {
         leaves.push({
           nodeId,
-          kind: kind as "flex" | "index" | "archive",
+          kind: kind as "flex" | "flex_starter" | "index" | "archive" | "archive_search",
           fractionOfTotal: fraction,
           tbPerDay: totalTbPerDay * fraction,
         });
@@ -213,6 +219,76 @@ export function effectiveTbPerDayAtNode(
   return tbPerMonthToTbPerDay(effectiveTbPerMonthAtNode(nodes, edges, nodeId));
 }
 
+/** Volumes (tb/month + million lines/month) reaching a node from all sources. */
+export interface NodeVolume {
+  tbPerMonth: number;
+  millionLinesPerMonth: number;
+}
+
+/**
+ * Single-pass map of tb/month + million-lines/month reaching every node.
+ * One DFS per source propagates `acc * pct/100` along each outgoing edge; the cycle
+ * guard is per-path so diamonds (multiple distinct paths to the same node) sum correctly.
+ * Replaces O(nodes × sources × depth) pathFractionToNode walks with O(nodes + edges).
+ */
+export function computeNodeVolumes(
+  nodes: StrategyNode[],
+  edges: StrategyEdge[]
+): Map<string, NodeVolume> {
+  const out = new Map<string, NodeVolume>();
+  for (const n of nodes) {
+    out.set(n.id, { tbPerMonth: 0, millionLinesPerMonth: 0 });
+  }
+
+  const adj = new Map<string, Array<{ target: string; pct: number }>>();
+  for (const e of edges) {
+    const list = adj.get(e.source) ?? [];
+    list.push({
+      target: e.target,
+      pct: Math.max(0, Math.min(100, e.data?.pct ?? 0)),
+    });
+    adj.set(e.source, list);
+  }
+
+  function walk(
+    nodeId: string,
+    tbAcc: number,
+    mAcc: number,
+    onPath: Set<string>
+  ): void {
+    if (onPath.has(nodeId)) return;
+    const entry = out.get(nodeId);
+    if (!entry) return;
+    entry.tbPerMonth += tbAcc;
+    entry.millionLinesPerMonth += mAcc;
+
+    const children = adj.get(nodeId);
+    if (!children || children.length === 0) return;
+
+    onPath.add(nodeId);
+    for (const ch of children) {
+      const f = ch.pct / 100;
+      walk(ch.target, tbAcc * f, mAcc * f, onPath);
+    }
+    onPath.delete(nodeId);
+  }
+
+  for (const n of nodes) {
+    if (n.data?.kind !== "source") continue;
+    const tb = finiteNonNegative(
+      n.data.totalTbPerMonth,
+      DEFAULT_TOTAL_TB_PER_MONTH
+    );
+    const m = finiteNonNegative(
+      n.data.millionLinesPerMonth,
+      DEFAULT_MILLION_LINES_PER_MONTH
+    );
+    walk(n.id, tb, m, new Set());
+  }
+
+  return out;
+}
+
 /** Flex/index/archive leaves with TB/day summed across all sources. */
 export function computeLeafVolumesFromSources(
   nodes: StrategyNode[],
@@ -221,7 +297,7 @@ export function computeLeafVolumesFromSources(
   const sources = nodes.filter((n) => n.data?.kind === "source");
   const leafMap = new Map<
     string,
-    { kind: "flex" | "index" | "archive"; tbPerDay: number }
+    { kind: "flex" | "flex_starter" | "index" | "archive" | "archive_search"; tbPerDay: number }
   >();
 
   for (const src of sources) {
@@ -257,6 +333,26 @@ export function computeLeafVolumesFromSources(
       totalSourceTbDay > 0 ? v.tbPerDay / totalSourceTbDay : 0,
     tbPerDay: v.tbPerDay,
   }));
+}
+
+/** Returns the id of the (single) flex_compute node, or null if none. */
+export function flexComputeNodeId(nodes: StrategyNode[]): string | null {
+  const n = nodes.find((x) => x.data?.kind === "flex_compute");
+  return n?.id ?? null;
+}
+
+/** Flex storage children (kind === "flex") downstream of a given flex_compute node. */
+export function flexChildrenOf(
+  computeId: string,
+  nodes: StrategyNode[],
+  edges: StrategyEdge[]
+): StrategyNode[] {
+  const targetIds = new Set(
+    edges.filter((e) => e.source === computeId).map((e) => e.target)
+  );
+  return nodes.filter(
+    (n) => targetIds.has(n.id) && n.data?.kind === "flex"
+  );
 }
 
 /** BFS from all sources (queue seeded with sorted source ids). */

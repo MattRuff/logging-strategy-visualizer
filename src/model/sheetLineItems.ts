@@ -1,17 +1,19 @@
 import {
   computeLeafVolumesFromSources,
-  effectiveMillionLinesAtNode,
-  effectiveTbPerDayAtNode,
-  effectiveTbPerMonthAtNode,
+  computeNodeVolumes,
+  type NodeVolume,
   orderedBfsFromSources,
   sumSourceTbPerMonth,
   tbPerDayToTbPerMonth,
+  tbPerMonthToTbPerDay,
 } from "./graphMath";
 import {
   type FlexComputeTier,
   flexTierToPricingKey,
+  GB_PER_TB,
   indexedRetentionToKey,
   resolvePrice,
+  siemTierForTb,
   type PricingKey,
 } from "./pricingCatalog";
 import { nearestFlexRetentionDays } from "./flexRetention";
@@ -26,7 +28,11 @@ export interface SheetLineItemsInput {
   edges: StrategyEdge[];
   pricingOverrides: Partial<Record<PricingKey, number>>;
   flexComputeTier: FlexComputeTier;
+  /** Optional precomputed volume map; if omitted we compute it once here. */
+  nodeVolumes?: Map<string, NodeVolume>;
 }
+
+const ZERO_VOLUME: NodeVolume = { tbPerMonth: 0, millionLinesPerMonth: 0 };
 
 function annual(m: number | null): number | null {
   if (m == null || Number.isNaN(m)) return null;
@@ -42,6 +48,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     sumSourceTbPerMonth(nodes),
     Number.EPSILON
   );
+  const volumes = p.nodeVolumes ?? computeNodeVolumes(nodes, edges);
 
   const hasFlexNode = nodes.some((n) => n.data?.kind === "flex");
   const flexLeaves = computeLeafVolumesFromSources(nodes, edges).filter(
@@ -51,21 +58,21 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
   function buildFlexStorageLineItem(): LineItem {
     const bucketRate = resolvePrice("flex_bucket_per_30d", ov);
     let flexMonthly = 0;
+    let totalMLines = 0;
+    let totalTbMo = 0;
     for (const lv of flexLeaves) {
       const n = nodeById.get(lv.nodeId);
       const days = nearestFlexRetentionDays(n?.data?.flexRetentionDays ?? 30);
-      const tbMo = tbPerDayToTbPerMonth(lv.tbPerDay);
+      const mLines = volumes.get(lv.nodeId)?.millionLinesPerMonth ?? 0;
       const buckets = days / 30;
-      flexMonthly += tbMo * bucketRate * buckets;
+      flexMonthly += mLines * bucketRate * buckets;
+      totalMLines += mLines;
+      totalTbMo += tbPerDayToTbPerMonth(lv.tbPerDay);
     }
     flexMonthly = Math.round(flexMonthly * 100) / 100;
-    const totalTbMo = flexLeaves.reduce(
-      (s, lv) => s + tbPerDayToTbPerMonth(lv.tbPerDay),
-      0
-    );
     const effUnit =
-      totalTbMo > 0
-        ? Math.round((flexMonthly / totalTbMo) * 10000) / 10000
+      totalMLines > 0
+        ? Math.round((flexMonthly / totalMLines) * 10000) / 10000
         : bucketRate;
 
     const pctOfTotal =
@@ -98,11 +105,11 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         : "",
       pctOfTotal,
       description: flexStorageDescription,
-      quantityPerMonth: Math.round(totalTbMo * 1000) / 1000,
+      quantityPerMonth: Math.round(totalMLines * 1000) / 1000,
       unitPrice: effUnit,
       monthly: flexMonthly,
       annual: annual(flexMonthly),
-      millionLinesNote: "TB/mo · blended $/TB-mo",
+      millionLinesNote: "M lines/mo · blended $/Mlines-30d",
       pricingKey: "flex_bucket_per_30d",
     };
   }
@@ -114,7 +121,9 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     const node = nodeById.get(nodeId);
     if (!node) continue;
     const kind = node.data.kind;
-    const effTbMo = effectiveTbPerMonthAtNode(nodes, edges, nodeId);
+    const vol = volumes.get(nodeId) ?? ZERO_VOLUME;
+    const effTbMo = vol.tbPerMonth;
+    const effMLines = vol.millionLinesPerMonth;
     const pct =
       sumTbMo > 0
         ? Math.round((effTbMo / sumTbMo) * 100000) / 1000
@@ -146,12 +155,16 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       continue;
     }
 
+    // flex_compute is rendered as the global Flex Compute row appended below;
+    // skip generic per-node emission to avoid a duplicate "—" row.
+    if (kind === "flex_compute") continue;
+
     if (kind === "source") {
       continue;
     }
 
     if (kind === "pipelines") {
-      const effTbDay = effectiveTbPerDayAtNode(nodes, edges, nodeId);
+      const effTbDay = tbPerMonthToTbPerDay(effTbMo);
       const ops = Math.max(1, Math.ceil(effTbDay));
       const opRate = resolvePrice("op_monthly_per_op", ov);
       const monthly = ops * opRate;
@@ -171,10 +184,30 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       continue;
     }
 
+    if (kind === "siem") {
+      const tbMo = Math.round(effTbMo * 1000) / 1000;
+      const tier = siemTierForTb(tbMo);
+      const unit = resolvePrice(tier.key, ov);
+      const gbMo = tbMo * GB_PER_TB;
+      const monthly = Math.round(gbMo * unit * 100) / 100;
+      rows.push({
+        ...base,
+        nodeLabel: node.data.label,
+        displayType: "SIEM",
+        skuKey: "siem_ingest",
+        description: `SIEM (${tier.label})`,
+        quantityPerMonth: Math.round(gbMo * 1000) / 1000,
+        unitPrice: unit,
+        monthly,
+        annual: annual(monthly),
+        millionLinesNote: "GB/mo · tier $/GB",
+        pricingKey: tier.key,
+      });
+      continue;
+    }
+
     if (kind === "ingest") {
-      const q = Math.round(
-        effectiveMillionLinesAtNode(nodes, edges, nodeId) * 1000
-      ) / 1000;
+      const q = Math.round(effMLines * 1000) / 1000;
       const unit = resolvePrice("log_ingest_per_million", ov);
       const monthly = Math.round(q * unit * 100) / 100;
       rows.push({
@@ -196,9 +229,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     if (kind === "index") {
       const days = node.data.retentionDays ?? 3;
       const pk = indexedRetentionToKey(days);
-      const q = Math.round(
-        effectiveMillionLinesAtNode(nodes, edges, nodeId) * 1000
-      ) / 1000;
+      const q = Math.round(effMLines * 1000) / 1000;
       const unit = resolvePrice(pk, ov);
       const monthly = Math.round(q * unit * 100) / 100;
       rows.push({
@@ -234,6 +265,51 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       continue;
     }
 
+    if (kind === "archive_search") {
+      const tbMo = effTbMo;
+      const gbMo = tbMo * GB_PER_TB;
+      const unit = resolvePrice("archive_search_per_gb", ov);
+      const monthly = Math.round(gbMo * unit * 100) / 100;
+      rows.push({
+        ...base,
+        nodeLabel: node.data.label,
+        displayType: "Archive Search",
+        skuKey: "archive_search",
+        description: "Archive Search",
+        quantityPerMonth: Math.round(gbMo * 1000) / 1000,
+        unitPrice: unit,
+        monthly,
+        annual: annual(monthly),
+        millionLinesNote: "GB scanned/mo",
+        pricingKey: "archive_search_per_gb",
+      });
+      continue;
+    }
+
+    if (kind === "flex_starter") {
+      const days = nearestFlexRetentionDays(
+        node.data.flexRetentionDays ?? 30
+      );
+      const mLines = Math.round(effMLines * 1000) / 1000;
+      const unit = resolvePrice("flex_starter_per_million_30d", ov);
+      const buckets = days / 30;
+      const monthly = Math.round(mLines * unit * buckets * 100) / 100;
+      rows.push({
+        ...base,
+        nodeLabel: node.data.label,
+        displayType: "Flex Starter",
+        skuKey: "flex_starter",
+        description: `Flex Starter ${days}d`,
+        quantityPerMonth: mLines,
+        unitPrice: unit,
+        monthly,
+        annual: annual(monthly),
+        millionLinesNote: "M lines/mo · $/M-30d",
+        pricingKey: "flex_starter_per_million_30d",
+      });
+      continue;
+    }
+
     rows.push({
       ...base,
       nodeLabel: node.data.label,
@@ -254,12 +330,14 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
   if (hasFlexNode) {
     const pk = flexTierToPricingKey(p.flexComputeTier);
     const m = resolvePrice(pk, ov);
+    const computeNode = nodes.find((n) => n.data?.kind === "flex_compute");
     rows.push({
       id: "flex-compute",
       lineKind: "flex_compute",
       displayType: "Flex Compute",
       skuKey: "flex_compute",
-      nodeLabel: "",
+      nodeLabel: computeNode?.data.label ?? "",
+      routeNodeId: computeNode?.id,
       pctOfTotal: null,
       description: `Flex Compute ${p.flexComputeTier.toUpperCase()}`,
       quantityPerMonth: null,

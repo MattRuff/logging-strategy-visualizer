@@ -1,0 +1,54 @@
+# Build the Vite app and publish dist/ to S3, then invalidate CloudFront.
+#
+# Configure repository Variables (Settings → Actions → Variables):
+#   S3_BUCKET_ID               — terraform output s3_bucket_id
+#   CLOUDFRONT_DISTRIBUTION_ID — terraform output cloudfront_distribution_id
+#   AWS_REGION                 — e.g. us-east-1 (must match the region used by aws CLI)
+#
+# Authentication (pick one):
+#   - OIDC: set secret AWS_DEPLOY_ROLE_ARN to an IAM role that trusts GitHub OIDC and
+#     allows s3:PutObject, s3:DeleteObject, s3:ListBucket on the bucket and
+#     cloudfront:CreateInvalidation on the distribution.
+#   - Static keys: comment out the OIDC step and set secrets AWS_ACCESS_KEY_ID /
+#     AWS_SECRET_ACCESS_KEY instead (not recommended for production).
+
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Upload to S3
+        env:
+          BUCKET: ${{ vars.S3_BUCKET_ID }}
+        run: aws s3 sync dist/ "s3://${BUCKET}/" --delete
+
+      - name: Invalidate CloudFront
+        env:
+          DIST_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"

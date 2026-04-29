@@ -4,10 +4,14 @@ import type { PricingKey } from "./pricingCatalog";
 export type NodeKind =
   | "source"
   | "pipelines"
+  | "siem"
   | "ingest"
+  | "flex_compute"
   | "flex"
+  | "flex_starter"
   | "index"
-  | "archive";
+  | "archive"
+  | "archive_search";
 
 export interface StrategyNodeData extends Record<string, unknown> {
   kind: NodeKind;
@@ -34,11 +38,14 @@ export type SheetLineKind = "node" | "flex_aggregate" | "flex_compute";
 /** Cost sheet “Type” column (OP, Ingest, …) */
 export type SheetDisplayType =
   | "OP"
+  | "SIEM"
   | "Ingest"
   | "Flex Storage"
   | "Flex Compute"
+  | "Flex Starter"
   | "Standard"
-  | "Archive";
+  | "Archive"
+  | "Archive Search";
 
 export interface LineItem {
   id: string;
