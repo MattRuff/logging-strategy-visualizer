@@ -1,0 +1,141 @@
+# Deploys the SPA + Lambdas to AWS, with Datadog source-code integration.
+#
+# Required GitHub repository variables (Settings → Actions → Variables):
+#   AWS_REGION                  — e.g. us-east-1
+#   S3_BUCKET                   — terraform output experimental_site_bucket
+#   CLOUDFRONT_DISTRIBUTION_ID  — terraform output cloudfront_distribution_id
+#   LAMBDA_PREFIX               — var.project_name (e.g. logging-strategy-experimental)
+#   VITE_COGNITO_USER_POOL_ID
+#   VITE_COGNITO_CLIENT_ID
+#   VITE_COGNITO_DOMAIN
+#   VITE_COGNITO_REGION         — same as AWS_REGION
+#   DD_SITE                     — datadoghq.com (default), datadoghq.eu, etc.
+#
+# Required secrets:
+#   AWS_DEPLOY_ROLE_ARN         — IAM role ARN, scoped to the resources this workflow touches.
+#   DD_API_KEY                  — Datadog API key (used by datadog-ci git-metadata upload).
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "lambda/**"
+      - "public/**"
+      - "index.html"
+      - "package*.json"
+      - "vite.config.ts"
+      - "tsconfig.json"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  GIT_REPOSITORY_URL: https://github.com/${{ github.repository }}
+  GIT_COMMIT_SHA: ${{ github.sha }}
+  DD_SITE: ${{ vars.DD_SITE || 'datadoghq.com' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so datadog-ci can upload git metadata
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate runtime config
+        run: |
+          cat > .env.production <<EOF
+          VITE_COGNITO_USER_POOL_ID=${{ vars.VITE_COGNITO_USER_POOL_ID }}
+          VITE_COGNITO_CLIENT_ID=${{ vars.VITE_COGNITO_CLIENT_ID }}
+          VITE_COGNITO_DOMAIN=${{ vars.VITE_COGNITO_DOMAIN }}
+          VITE_COGNITO_REGION=${{ vars.VITE_COGNITO_REGION || vars.AWS_REGION }}
+          VITE_API_BASE_URL=/api
+          VITE_BUILD_VERSION=${GIT_COMMIT_SHA}
+          EOF
+
+      - name: Build SPA
+        run: npm run build
+
+      - name: Upload git metadata to Datadog
+        env:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+        run: |
+          npx --yes @datadog/datadog-ci git-metadata upload \
+            --repository-url "${GIT_REPOSITORY_URL}"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Upload SPA to S3
+        env:
+          BUCKET: ${{ vars.S3_BUCKET }}
+        run: aws s3 sync dist/ "s3://${BUCKET}/" --delete
+
+      - name: Invalidate CloudFront
+        env:
+          DIST_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$DIST_ID" \
+            --paths "/*"
+
+      - name: Package Lambda bundle
+        run: |
+          cd lambda
+          zip -r ../lambda_bundle.zip . -x "*.zip" -x ".build/*"
+
+      - name: Update each Lambda function code
+        env:
+          PREFIX: ${{ vars.LAMBDA_PREFIX }}
+        run: |
+          for fn in saveWorkload loadWorkload listMyWorkloads publish listArchive; do
+            aws lambda update-function-code \
+              --function-name "${PREFIX}-${fn}" \
+              --zip-file "fileb://lambda_bundle.zip" \
+              --publish
+          done
+
+      # Wait for the code update to settle, then merge the Datadog source-code env vars
+      # (commit SHA + repo URL + version) into each Lambda's environment. Existing vars
+      # (DD_API_KEY_SECRET_ARN, DD_LAMBDA_HANDLER, etc.) are preserved via jq merge.
+      - name: Tag each Lambda with git metadata
+        env:
+          PREFIX: ${{ vars.LAMBDA_PREFIX }}
+        run: |
+          for fn in saveWorkload loadWorkload listMyWorkloads publish listArchive; do
+            FN_NAME="${PREFIX}-${fn}"
+            # Wait until the function isn't in mid-update
+            for _ in $(seq 1 30); do
+              status=$(aws lambda get-function-configuration --function-name "$FN_NAME" --query 'LastUpdateStatus' --output text)
+              if [ "$status" = "Successful" ]; then break; fi
+              sleep 2
+            done
+
+            current=$(aws lambda get-function-configuration --function-name "$FN_NAME" --query 'Environment.Variables' --output json)
+            merged=$(echo "$current" | jq \
+              --arg sha "$GIT_COMMIT_SHA" \
+              --arg url "$GIT_REPOSITORY_URL" \
+              '. + {DD_GIT_COMMIT_SHA: $sha, DD_GIT_REPOSITORY_URL: $url, DD_VERSION: $sha}')
+            aws lambda update-function-configuration \
+              --function-name "$FN_NAME" \
+              --environment "Variables=$(echo "$merged" | jq -c .)" \
+              --output json > /dev/null
+          done

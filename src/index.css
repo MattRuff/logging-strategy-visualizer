@@ -258,6 +258,412 @@ body {
   color: var(--dd-text);
 }
 
+/* Group container node */
+.group-node {
+  width: 100%;
+  height: 100%;
+  border: 1.5px dashed var(--group-color, var(--dd-purple));
+  border-radius: var(--dd-radius-lg);
+  background: color-mix(in srgb, var(--group-color, var(--dd-purple)) 6%, transparent);
+  display: flex;
+  flex-direction: column;
+  pointer-events: all;
+}
+.group-node--selected {
+  border-style: solid;
+  background: color-mix(in srgb, var(--group-color, var(--dd-purple)) 10%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--group-color, var(--dd-purple)) 25%, transparent);
+}
+.group-node__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: color-mix(in srgb, var(--group-color, var(--dd-purple)) 14%, transparent);
+  border-radius: calc(var(--dd-radius-lg) - 1px) calc(var(--dd-radius-lg) - 1px) 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--group-color, var(--dd-purple)) 80%, #1a1133);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.group-node__name,
+.group-node__name-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.group-node__name-input {
+  cursor: text;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--dd-border-strong);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.group-node__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--dd-border-strong);
+  background: var(--dd-surface);
+  color: var(--dd-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.group-node__delete:hover {
+  background: #e63b3b;
+  border-color: #c12d2d;
+  color: #fff;
+}
+
+/* Group draw mode — overlay that captures mouse to draw a selection rect */
+.flow-canvas-inner--group-mode {
+  cursor: crosshair;
+}
+.group-draw-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  cursor: crosshair;
+  background: transparent;
+}
+.group-draw-overlay__rect {
+  position: absolute;
+  border: 1.5px dashed var(--dd-purple);
+  background: rgba(99, 44, 166, 0.08);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.rotate-toggle__btn--active {
+  background: var(--dd-purple) !important;
+  color: #fff !important;
+  border-color: var(--dd-purple) !important;
+}
+
+/* Toolbar save status text */
+.toolbar__save-status {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  min-width: 80px;
+  white-space: nowrap;
+}
+
+/* Toolbar account avatar */
+.toolbar__avatar-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.toolbar__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.toolbar__avatar-btn:hover .toolbar__avatar {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Generic menu popover */
+.menu-popover {
+  position: relative;
+  display: inline-block;
+}
+.menu-popover__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  background: var(--dd-surface);
+  border: 1px solid var(--dd-border-strong);
+  border-radius: var(--dd-radius);
+  box-shadow: var(--dd-shadow-md);
+  padding: 4px;
+  min-width: 240px;
+  max-height: 460px;
+  overflow: auto;
+  z-index: 50;
+}
+.menu-popover__panel--right {
+  right: 0;
+}
+.menu-popover__panel--left {
+  left: 0;
+}
+.menu-popover__item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dd-text);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+.menu-popover__item:hover:not(:disabled) {
+  background: var(--dd-purple-tint);
+  color: var(--dd-purple-dark);
+}
+.menu-popover__item:disabled {
+  color: var(--dd-text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.menu-popover__item--danger {
+  color: #b13838;
+}
+.menu-popover__item--danger:hover:not(:disabled) {
+  background: #fdecea;
+  color: #8a2222;
+}
+.menu-popover__shortcut {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dd-text-muted);
+  background: var(--dd-bg-subtle);
+  border: 1px solid var(--dd-border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: ui-monospace, "SF Mono", monospace;
+}
+.menu-popover__divider {
+  height: 1px;
+  background: var(--dd-border);
+  margin: 4px 0;
+}
+.menu-popover__header {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dd-text-muted);
+}
+.menu-popover__header-email {
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dd-text);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.menu-popover__section-title {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dd-text-muted);
+}
+.menu-popover__hint {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--dd-text-muted);
+}
+.menu-popover__hint--error {
+  color: crimson;
+}
+.menu-popover__list {
+  display: flex;
+  flex-direction: column;
+}
+.menu-popover__list-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-popover__list-item:hover {
+  background: var(--dd-purple-tint);
+}
+.menu-popover__list-item--current {
+  background: var(--dd-purple-tint);
+}
+.menu-popover__list-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dd-text);
+}
+.menu-popover__list-item-meta {
+  font-size: 11px;
+  color: var(--dd-text-muted);
+}
+
+/* Spend by group — multiple rows, each row a stacked bar by node type */
+.spend-by-group__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.spend-by-group__row {
+  display: grid;
+  grid-template-columns: 160px 1fr 130px;
+  gap: 10px;
+  align-items: center;
+}
+.spend-by-group__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dd-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.spend-by-group__chip {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.spend-by-group__amount {
+  font-size: 12px;
+  color: var(--dd-text);
+  text-align: right;
+  white-space: nowrap;
+}
+.spend-by-group__pct {
+  margin-left: 8px;
+  color: var(--dd-text-muted);
+}
+
+/* Group color swatch on the group-node header */
+.group-node__color-swatch {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  padding: 0;
+  background: var(--group-color, var(--dd-purple));
+}
+.group-node__color-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+/* Cost sheet — group section header / subtotal / indented row */
+.sheet-row--group-header td {
+  background: rgba(99, 44, 166, 0.1);
+  color: var(--dd-purple-dark);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 10px;
+  border-top: 1px solid rgba(99, 44, 166, 0.25);
+  border-bottom: 1px solid rgba(99, 44, 166, 0.25);
+}
+.sheet-row--grouped td:first-child {
+  border-left: 3px solid var(--dd-purple);
+  padding-left: 9px;
+}
+/* Pivot-table-style subtotal row — label cell on the left (merged), with
+   numeric subtotals sitting directly under their Monthly / Annual columns. */
+.sheet-row--group-subtotal td {
+  background: rgba(99, 44, 166, 0.06);
+  font-weight: 700;
+  padding: 6px 10px;
+  border-top: 2px solid var(--dd-purple);
+  border-bottom: 2px solid var(--dd-purple);
+  color: var(--dd-text);
+  font-size: 12px;
+}
+.sheet-group-subtotal__label-cell {
+  text-align: right;
+  color: var(--dd-purple-dark);
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.sheet-group-subtotal__value {
+  text-align: right;
+  color: var(--dd-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pct-edge-label__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--dd-border-strong);
+  background: var(--dd-surface);
+  color: var(--dd-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--dd-shadow);
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.pct-edge-label:hover .pct-edge-label__delete,
+.pct-edge-label:focus-within .pct-edge-label__delete {
+  opacity: 1;
+}
+
+.pct-edge-label__delete:hover {
+  background: #e63b3b;
+  border-color: #c12d2d;
+  color: #fff;
+}
+
 .pct-edge-label__suffix {
   font-size: 10px;
   color: var(--dd-text-muted);
@@ -438,6 +844,27 @@ body {
 
 .palette__chip:active {
   cursor: grabbing;
+}
+
+.palette__title--secondary {
+  margin-top: 14px;
+}
+
+.palette__chip--group {
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-style: solid;
+  border-color: var(--dd-purple);
+  background: var(--dd-surface);
+}
+.palette__chip--group:hover {
+  background: var(--dd-purple-tint);
+}
+.palette__chip--active {
+  background: var(--dd-purple) !important;
+  color: #fff !important;
+  border-color: var(--dd-purple) !important;
 }
 
 .inspector {

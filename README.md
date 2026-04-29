@@ -1,32 +1,108 @@
 # Logging strategy visualizer
 
-Interactive **flow diagram** plus **cost sheet** for Datadog logging routing (Observability Pipelines, ingestion, indexed hot storage, Flex storage + compute, archive). Edge **%** values sync with the sheet; **quantity** is derived and read-only; **Unit $** uses defaults from [`src/model/pricingCatalog.ts`](src/model/pricingCatalog.ts) (verify against [Druids](https://druids.datadoghq.com/) on VPN) and can be **overridden** in the sheet. Use **Reset pricing defaults** to clear overrides.
+Interactive **flow diagram** plus **cost sheet** for Datadog logging routing (Observability Pipelines, ingestion, indexed hot storage, Flex storage + compute, archive). Hosted multi-user app with email/password sign-in, per-user auto-saved scenarios, and a global archive.
 
-## Setup
+Edge **%** values sync with the sheet; **quantity** is derived and read-only; **Unit $** uses defaults from [`src/model/pricingCatalog.ts`](src/model/pricingCatalog.ts) (verify against [Druids](https://druids.datadoghq.com/) on VPN) and can be **overridden** in the sheet. Use **Reset pricing** to clear overrides.
+
+## Local development
 
 ```bash
 npm install
-npm run dev
+cp env.local.example .env.local        # fill in Cognito + API values from `terraform output`
+npm run dev                              # http://localhost:5173
 ```
 
-Open the printed local URL (typically `http://localhost:5173`).
+Cognito callbacks already include `http://localhost:5173/auth/callback`, so you can sign in against the live user pool from a local dev server.
 
-## Usage
+## Architecture
 
-- **Toolbar**: **Total TB/month**, **Million log lines, per month** (for indexed and ingestion math). Defaults follow a **30 TB/month ↔ 30 billion lines/month** rule of thumb (30,000 in the millions field). **New scenario** resets the example graph, volumes, Flex compute tier (Small), and **pricing overrides**. **Reset pricing defaults** clears overrides only.
-- **Layout**: Drag the **horizontal handle** between the diagram and the cost sheet to resize panels.
-- **Palette**: Drag node types onto the canvas; connect handles; edit **%** on edges (compact chip on the line).
-- **Inspector**: **Flex compute** tier (global, XS–L). When a node is selected, edit label and retention (indexed / Flex).
-- **Cost sheet**:
-  - **One row per graph node** (BFS order), except **Flex** destinations share a single **Flex Storage** line with blended pricing; **Flex compute** is one row by tier. **Type** column: OP, Ingest, Standard, Flex Storage, Flex Compute, Archive. Columns **Name** (graph label) then **Description** (short line, e.g. `Standard Index 3`, `Flex Storage 30`) — same order in **Export .xlsx**.
-  - **% of total**: editable for node rows; adjusts the **last edge** on the path from the root to match the target share.
-  - **Unit $**: editable where a **pricing key** applies; writes an override (not the code default).
-- **Export .xlsx**: **Costs** sheet plus **`_strategy_model`** (JSON: graph, volumes, `pricingOverrides`, `flexComputeTier`). **Import** requires that model sheet for a full restore.
+```
+                            ┌──────────────────────────┐
+                            │ Cognito User Pool         │
+                            │   • Hosted UI (signup,    │
+                            │     verify, sign-in)      │
+                            │   • Issues JWT (id_token) │
+                            └──────────────┬────────────┘
+                                           │ OIDC code flow
+                                           ▼
+   Browser ──► CloudFront ──► S3 (SPA: Vite + React)
+       │            │
+       │            └─► /api/* ──► API Gateway (HTTP API, JWT authorizer)
+       │                                │
+       │                                ▼
+       │                        ┌──────────────────────┐
+       │                        │ 5 Lambdas (Node 22)  │
+       │                        │   saveWorkload  PUT  │
+       │                        │   loadWorkload  GET  │
+       │                        │   listMyWorkloads    │
+       │                        │   publish       POST │
+       │                        │   listArchive   GET  │
+       │                        └──────────┬───────────┘
+       │                                   ▼
+       │                         DynamoDB (workloads table)
+       ▼
+  Bearer <id_token> on every /api/* call
+```
 
-## Notes
+CloudFront has two origins: the SPA bucket (default behavior, cached) and the API (`/api/*` behavior, cache disabled). Traffic is same-origin, so no CORS preflight in production.
 
-- **Defaults**: Align `DEFAULT_PRICING` with internal Druids list prices when they change; note the review date here: **2026-04-15** (update when re-verified). See [`DRUIDS_SOURCES.md`](DRUIDS_SOURCES.md).
-- **SheetJS (`xlsx`)**: Confirm your organization’s license terms for production use.
+## Layout
+
+```
+.
+├── src/                       Vite + React SPA
+│   ├── main.tsx, App.tsx      entry + router
+│   ├── auth/                  oidc-client-ts wrapper + AuthProvider
+│   ├── components/            Toolbar (top bar), Palette, FlowCanvas, CostSheet, …
+│   ├── pages/                 Landing, Visualizer, Pricing, Hybrid, MyWorkloads, Archive, AuthCallback, WorkloadShell
+│   ├── lib/                   workloadApi (Bearer-token fetch), hydrateStore, xlsxSync
+│   ├── state/                 strategyStore (zustand), useAutoSave
+│   ├── model/                 graph math, pricing catalog, sheet line items
+│   ├── templates/             starter strategies
+│   └── config/runtime.ts      build-time runtime config (read from VITE_* env vars)
+├── lambda/                    five Node 22 ESM handlers + shared helpers
+└── terraform/                 Cognito, DynamoDB, API Gateway, Lambda, CloudFront, S3
+```
+
+## Deploy (first time)
+
+1. **Pick a Cognito domain prefix** (must be globally unique per region) and set tfvars:
+   ```bash
+   cd terraform
+   cp terraform.tfvars.example terraform.tfvars
+   # set project_name, aws_region, cognito_domain_prefix
+   ```
+   (Optionally) `cp backend.tf.example backend.tf` and configure remote state.
+2. **Apply Terraform:**
+   ```bash
+   terraform init
+   terraform plan
+   terraform apply
+   ```
+3. **Wire up GitHub Actions.** From `terraform output`, set these repository variables (Settings → Actions → Variables):
+
+   | Variable                    | Source                              |
+   | --------------------------- | ----------------------------------- |
+   | `S3_BUCKET`                 | `experimental_site_bucket`          |
+   | `CLOUDFRONT_DISTRIBUTION_ID`| `cloudfront_distribution_id`        |
+   | `LAMBDA_PREFIX`             | `var.project_name`                  |
+   | `AWS_REGION`                | e.g. `us-east-1`                    |
+   | `VITE_COGNITO_USER_POOL_ID` | `cognito_user_pool_id`              |
+   | `VITE_COGNITO_CLIENT_ID`    | `cognito_user_pool_client_id`       |
+   | `VITE_COGNITO_DOMAIN`       | `cognito_domain`                    |
+   | `VITE_COGNITO_REGION`       | same as `AWS_REGION`                |
+
+   And one secret:
+
+   | Secret                  | Notes                                                              |
+   | ----------------------- | ------------------------------------------------------------------ |
+   | `AWS_DEPLOY_ROLE_ARN`   | IAM role scoped to the deployed S3 bucket, CloudFront, and Lambdas |
+
+4. **Push to `main`** (or run **Deploy** via `workflow_dispatch`). The workflow uploads the SPA, invalidates CloudFront, and updates each Lambda's code.
+
+### Custom domain (optional)
+
+Set `enable_custom_domain = true` and provide `domain_name` + `hosted_zone_id` in `terraform.tfvars`. Terraform will request an ACM cert in `us-east-1`, validate it via Route 53, alias the CloudFront distribution, and patch the Cognito callback URL list.
 
 ## Scripts
 
@@ -36,21 +112,8 @@ Open the printed local URL (typically `http://localhost:5173`).
 | `npm run build`   | Typecheck + build        |
 | `npm run preview` | Preview production build |
 | `npm run test`    | Vitest unit tests        |
-| `npm run helm:lint` | Lint the Helm chart   |
-| `npm run helm:install-minikube` | Build image in Minikube + install chart |
 
-## Docker image (GitHub Container Registry)
+## Notes
 
-On every push to **`main`** (and **`master`**), [GitHub Actions](.github/workflows/docker-publish.yml) builds the [`Dockerfile`](Dockerfile) and pushes to **GitHub Container Registry (GHCR)**:
-
-`ghcr.io/mattruff/logging-strategy-visualizer:latest` (also tagged with the commit SHA and branch/tag name).
-
-Pull locally:
-
-```bash
-docker pull ghcr.io/mattruff/logging-strategy-visualizer:latest
-```
-
-The package may start **private** to your account. To let others pull without logging in: GitHub → **Packages** → this package → **Package settings** → **Change package visibility** → **Public** (or grant collaborators access).
-
-Helm defaults are tuned for local Minikube; for GHCR set `image.repository`, `image.tag`, and `image.pullPolicy` (e.g. `IfNotPresent`) in [`deploy/helm/logging-strategy/values.yaml`](deploy/helm/logging-strategy/values.yaml).
+- **Pricing defaults**: Align `DEFAULT_PRICING` with internal Druids list prices when they change; note the review date in [`DRUIDS_SOURCES.md`](DRUIDS_SOURCES.md).
+- **Observability**: Datadog Browser RUM is initialized in `src/main.tsx`. For Lambda traces, attach the Datadog Lambda Extension layer in `terraform/main.tf` and set `DD_API_KEY_SECRET_ARN`, `DD_SITE`, `DD_SERVICE`, `DD_ENV`.

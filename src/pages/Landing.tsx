@@ -5,6 +5,7 @@ import {
   STRATEGY_TEMPLATES,
   type StrategyTemplate,
 } from "@/templates/manifest";
+import { useAuth } from "@/auth/AuthProvider";
 
 const modes: {
   to: string;
@@ -33,10 +34,25 @@ const modes: {
     description:
       "Full workspace: canvas on top, cost sheet below. Changes sync both ways.",
   },
+  {
+    to: "/workloads",
+    title: "My scenarios",
+    subtitle: "Personal · auto-saved",
+    description:
+      "Open, rename, or publish any of your saved scenarios. Sign in to start auto-saving as you edit.",
+  },
+  {
+    to: "/archive",
+    title: "Browse archive",
+    subtitle: "Read-only · published by anyone",
+    description:
+      "Open scenarios published by your teammates. View them read-only, or use “Save as…” to fork into your own list.",
+  },
 ];
 
 export function Landing() {
   const navigate = useNavigate();
+  const { accessToken, email, signIn, signOut } = useAuth();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +60,6 @@ export function Landing() {
     setError(null);
     setLoadingId(t.id);
     try {
-      // Snapshot the current scenario so Undo reverts to pre-template state.
       useStrategyStore.getState().pushHistory();
       const res = await fetch(t.file);
       if (!res.ok) {
@@ -53,7 +68,6 @@ export function Landing() {
         );
       }
       const buf = await res.arrayBuffer();
-      // Lazy-load exceljs only when someone actually picks a template.
       const { importStrategyXlsxFromBuffer } = await import("@/lib/xlsxSync");
       await importStrategyXlsxFromBuffer(buf, useStrategyStore.setState);
       const conflicts = useStrategyStore.getState().sheetConflicts;
@@ -63,9 +77,7 @@ export function Landing() {
       }
       navigate("/hybrid");
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Failed to load template."
-      );
+      setError(e instanceof Error ? e.message : "Failed to load template.");
     } finally {
       setLoadingId(null);
     }
@@ -75,12 +87,24 @@ export function Landing() {
     <div className="landing">
       <header className="landing__header">
         <div className="landing__brand">
-          <span className="landing__mark" aria-hidden="true">
-            DD
-          </span>
+          <span className="landing__mark" aria-hidden="true">DD</span>
           <div>
-            <div className="landing__eyebrow">Datadog</div>
+            <div className="landing__eyebrow">Datadog · experimental</div>
             <h1 className="landing__title">Logging strategy visualizer</h1>
+          </div>
+          <div style={authChipWrap}>
+            {accessToken ? (
+              <>
+                <span style={emailStyle} title={email ?? ""}>{email}</span>
+                <button type="button" style={ghostBtn} onClick={() => signOut()}>
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <button type="button" style={primaryBtn} onClick={() => signIn()}>
+                Sign in
+              </button>
+            )}
           </div>
         </div>
         <p className="landing__lede">
@@ -128,8 +152,8 @@ export function Landing() {
                 % on each edge (the log count under it syncs automatically).
               </li>
               <li>
-                Tune retention, unit prices, and Flex compute tier to match
-                your scenario; use Undo (⌘Z / Ctrl+Z) to back out of changes.
+                Sign in and your edits auto-save under a named scenario; come
+                back later, or publish to the archive for the team.
               </li>
             </ol>
           </div>
@@ -137,9 +161,10 @@ export function Landing() {
 
         <p className="landing__lede landing__lede--sub">
           Choose how you want to work. You can switch at any time; your
-          scenario stays in memory for this session.
+          scenario auto-saves to your account once you sign in.
         </p>
       </header>
+
       <div className="landing__grid">
         {modes.map((m) => (
           <Link key={m.to} to={m.to} className="landing__card">
@@ -208,3 +233,40 @@ export function Landing() {
     </div>
   );
 }
+
+const authChipWrap: React.CSSProperties = {
+  marginLeft: "auto",
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+};
+const emailStyle: React.CSSProperties = {
+  fontSize: 13,
+  color: "var(--dd-text-muted)",
+  maxWidth: 220,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+const baseBtn: React.CSSProperties = {
+  padding: "8px 14px",
+  borderRadius: "var(--dd-radius)",
+  font: "inherit",
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: "pointer",
+  border: "1px solid transparent",
+  transition: "background 0.12s ease, border-color 0.12s ease, color 0.12s ease",
+};
+const ghostBtn: React.CSSProperties = {
+  ...baseBtn,
+  background: "transparent",
+  borderColor: "var(--dd-border-strong)",
+  color: "var(--dd-text)",
+};
+const primaryBtn: React.CSSProperties = {
+  ...baseBtn,
+  background: "var(--dd-purple)",
+  borderColor: "var(--dd-purple)",
+  color: "#fff",
+};

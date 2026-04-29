@@ -94,6 +94,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       flexStorageDescription = "Flex Storage (multiple)";
     }
 
+    const aggregateGroup = routeNodeId ? groupForNode(routeNodeId) : undefined;
     return {
       id: "flex-storage-aggregate",
       lineKind: "flex_aggregate",
@@ -111,6 +112,23 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       annual: annual(flexMonthly),
       millionLinesNote: "M lines/mo · blended $/Mlines-30d",
       pricingKey: "flex_bucket_per_30d",
+      groupId: aggregateGroup?.id,
+      groupName: aggregateGroup?.label,
+      groupColor: aggregateGroup?.color,
+    };
+  }
+
+  function groupForNode(
+    nid: string
+  ): { id: string; label: string; color?: string } | undefined {
+    const n = nodeById.get(nid);
+    if (!n?.parentId) return undefined;
+    const parent = nodeById.get(n.parentId);
+    if (!parent || parent.type !== "group") return undefined;
+    return {
+      id: parent.id,
+      label: parent.data?.label ?? "Group",
+      color: parent.data?.groupColor,
     };
   }
 
@@ -121,6 +139,8 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     const node = nodeById.get(nodeId);
     if (!node) continue;
     const kind = node.data.kind;
+    // Group containers don't appear in the cost sheet; their children do.
+    if (kind === "group") continue;
     const vol = volumes.get(nodeId) ?? ZERO_VOLUME;
     const effTbMo = vol.tbPerMonth;
     const effMLines = vol.millionLinesPerMonth;
@@ -129,6 +149,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         ? Math.round((effTbMo / sumTbMo) * 100000) / 1000
         : 0;
 
+    const grp = groupForNode(nodeId);
     const base: Omit<
       LineItem,
       | "monthly"
@@ -145,6 +166,9 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       lineKind: "node",
       routeNodeId: nodeId,
       pctOfTotal: pct,
+      groupId: grp?.id,
+      groupName: grp?.label,
+      groupColor: grp?.color,
     };
 
     if (kind === "flex") {
@@ -331,6 +355,39 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     const pk = flexTierToPricingKey(p.flexComputeTier);
     const m = resolvePrice(pk, ov);
     const computeNode = nodes.find((n) => n.data?.kind === "flex_compute");
+    // Tag the flex-compute row with a group when every flex leaf shares the same
+    // group (the Flex Storage aggregate gets the same treatment via routeNodeId).
+    // Falls back to ungrouped if leaves span multiple groups.
+    const flexLeafGroups = flexLeaves
+      .map((lv) => groupForNode(lv.nodeId)?.id)
+      .filter((g): g is string => !!g);
+    const allFlexLeavesGrouped =
+      flexLeaves.length > 0 && flexLeafGroups.length === flexLeaves.length;
+    const sharedGroupId =
+      allFlexLeavesGrouped && new Set(flexLeafGroups).size === 1
+        ? flexLeafGroups[0]
+        : undefined;
+    const sharedGroup = sharedGroupId
+      ? {
+          id: sharedGroupId,
+          label: nodeById.get(sharedGroupId)?.data?.label ?? "Group",
+          color: nodeById.get(sharedGroupId)?.data?.groupColor,
+        }
+      : undefined;
+    // Also retroactively tag the flex aggregate with the shared group when
+    // there were multiple flex leaves (which wouldn't have a routeNodeId).
+    if (sharedGroup) {
+      const aggIdx = rows.findIndex((r) => r.lineKind === "flex_aggregate");
+      if (aggIdx !== -1 && !rows[aggIdx].groupId) {
+        rows[aggIdx] = {
+          ...rows[aggIdx],
+          groupId: sharedGroup.id,
+          groupName: sharedGroup.label,
+          groupColor: sharedGroup.color,
+        };
+      }
+    }
+
     rows.push({
       id: "flex-compute",
       lineKind: "flex_compute",
@@ -346,6 +403,9 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       annual: annual(m),
       millionLinesNote: "Monthly list",
       pricingKey: pk,
+      groupId: sharedGroup?.id,
+      groupName: sharedGroup?.label,
+      groupColor: sharedGroup?.color,
     });
   }
 

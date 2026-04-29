@@ -12,6 +12,7 @@ import {
 } from "@/model/flexRetention";
 import type { LineItem } from "@/model/types";
 import { useStrategyStore } from "@/state/strategyStore";
+import { GroupSpendBar } from "@/components/GroupSpendBar";
 
 const helper = createColumnHelper<LineItem>();
 
@@ -285,8 +286,38 @@ export function CostSheet() {
     ]
   );
 
+  // Cluster items by group so the table can render group section headers + subtotals.
+  // Ungrouped rows come first (groupId = ""), then each group's rows in original order.
+  const sortedItems = useMemo(() => {
+    return [...sheetLineItems]
+      .map((it, i) => [it, i] as const)
+      .sort((a, b) => {
+        const ga = a[0].groupId ?? "";
+        const gb = b[0].groupId ?? "";
+        if (ga !== gb) return ga.localeCompare(gb);
+        return a[1] - b[1];
+      })
+      .map(([it]) => it);
+  }, [sheetLineItems]);
+
+  const groupSubtotals = useMemo(() => {
+    const m = new Map<string, { name: string; monthly: number; annual: number }>();
+    for (const it of sheetLineItems) {
+      if (!it.groupId) continue;
+      const cur = m.get(it.groupId) ?? {
+        name: it.groupName ?? "Group",
+        monthly: 0,
+        annual: 0,
+      };
+      cur.monthly += it.monthly ?? 0;
+      cur.annual += it.annual ?? 0;
+      m.set(it.groupId, cur);
+    }
+    return m;
+  }, [sheetLineItems]);
+
   const table = useReactTable({
-    data: sheetLineItems,
+    data: sortedItems,
     columns,
     state: { columnSizing },
     onColumnSizingChange: setColumnSizing,
@@ -324,17 +355,21 @@ export function CostSheet() {
         </div>
       </div>
 
-      <div className="split-bar">
-        {splits.map((s) => (
-          <span
-            key={s.nodeId}
-            className={`split-pill ${s.ok ? "split-pill--ok" : "split-pill--bad"}`}
-            title={s.label}
-          >
-            {s.label}: {s.sumPct}% {s.ok ? "✓" : "≠ 100%"}
-          </span>
-        ))}
-      </div>
+      {sheetLineItems.some((it) => it.groupId) ? (
+        <GroupSpendBar items={sheetLineItems} />
+      ) : (
+        <div className="split-bar">
+          {splits.map((s) => (
+            <span
+              key={s.nodeId}
+              className={`split-pill ${s.ok ? "split-pill--ok" : "split-pill--bad"}`}
+              title={s.label}
+            >
+              {s.label}: {s.sumPct}% {s.ok ? "✓" : "≠ 100%"}
+            </span>
+          ))}
+        </div>
+      )}
 
       {sheetConflicts.length > 0 ? (
         <div className="sheet-conflicts" role="alert">
@@ -382,18 +417,88 @@ export function CostSheet() {
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    style={{ width: cell.column.getSize() }}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {(() => {
+              const rows = table.getRowModel().rows;
+              const out: React.ReactNode[] = [];
+              const headers = table.getHeaderGroups()[0]?.headers ?? [];
+              const colCount = headers.length || 1;
+              const headerIds = headers.map((h) => h.id);
+              const monthlyIdx = headerIds.indexOf("monthly");
+              const annualIdx = headerIds.indexOf("annual");
+              const fmt = (n: number) =>
+                n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+              let prevGroupId: string | undefined;
+              const flushSubtotal = (gid: string) => {
+                const sub = groupSubtotals.get(gid);
+                if (!sub) return;
+                // Pivot-style row: empty cells aligned with each column, with the
+                // monthly/annual subtotal sitting directly under their columns.
+                if (monthlyIdx >= 0 && annualIdx > monthlyIdx) {
+                  const before = monthlyIdx;
+                  const between = annualIdx - monthlyIdx - 1;
+                  const after = colCount - annualIdx - 1;
+                  out.push(
+                    <tr key={`grp-sub-${gid}`} className="sheet-row--group-subtotal">
+                      <td
+                        colSpan={before}
+                        className="sheet-group-subtotal__label-cell"
+                      >
+                        {sub.name} subtotal
+                      </td>
+                      <td className="sheet-group-subtotal__value">
+                        {fmt(sub.monthly)}
+                      </td>
+                      {between > 0 && <td colSpan={between} />}
+                      <td className="sheet-group-subtotal__value">
+                        {fmt(sub.annual)}
+                      </td>
+                      {after > 0 && <td colSpan={after} />}
+                    </tr>
+                  );
+                  return;
+                }
+                // Fallback (column ids not where expected): single colspan cell.
+                out.push(
+                  <tr key={`grp-sub-${gid}`} className="sheet-row--group-subtotal">
+                    <td colSpan={colCount} className="sheet-group-subtotal__label-cell">
+                      {sub.name} subtotal — Monthly <strong>{fmt(sub.monthly)}</strong>
+                      {" · "}Annual <strong>{fmt(sub.annual)}</strong>
+                    </td>
+                  </tr>
+                );
+              };
+
+              rows.forEach((row) => {
+                const gid = row.original.groupId ?? "";
+                if (gid !== (prevGroupId ?? "")) {
+                  if (prevGroupId) flushSubtotal(prevGroupId);
+                  if (gid) {
+                    out.push(
+                      <tr key={`grp-hdr-${gid}`} className="sheet-row--group-header">
+                        <td colSpan={colCount}>
+                          {row.original.groupName ?? "Group"}
+                        </td>
+                      </tr>
+                    );
+                  }
+                  prevGroupId = gid || undefined;
+                }
+                out.push(
+                  <tr key={row.id} className={gid ? "sheet-row--grouped" : undefined}>
+                    {row.getVisibleCells().map((cell) => (
+                      <td
+                        key={cell.id}
+                        style={{ width: cell.column.getSize() }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              });
+              if (prevGroupId) flushSubtotal(prevGroupId);
+              return out;
+            })()}
           </tbody>
         </table>
       </div>

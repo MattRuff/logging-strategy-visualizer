@@ -1,9 +1,0 @@
-project_name           = "logging-strategy-experimental"
-aws_region             = "us-east-1"
-cognito_domain_prefix  = "logstrat-exp"
-google_oauth_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:logstrat-exp/google-oauth-XXXXXX"
-
-# Optional custom domain
-enable_custom_domain = false
-# domain_name        = "experimental.example.com"
-# hosted_zone_id     = "Z1234567890ABC"

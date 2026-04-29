@@ -1,4 +1,5 @@
 import type { StrategyNodeData } from "@/model/types";
+import { useStrategyStore } from "@/state/strategyStore";
 
 const items: { kind: StrategyNodeData["kind"]; title: string; hint: string }[] =
   [
@@ -30,6 +31,9 @@ const items: { kind: StrategyNodeData["kind"]; title: string; hint: string }[] =
   ];
 
 export function Palette() {
+  const groupMode = useStrategyStore((s) => s.groupDrawMode);
+  const setGroupMode = useStrategyStore((s) => s.setGroupDrawMode);
+
   const onDragStart = (
     e: React.DragEvent,
     kind: StrategyNodeData["kind"]
@@ -55,6 +59,21 @@ export function Palette() {
           </button>
         ))}
       </div>
+      <div className="palette__title palette__title--secondary">Group</div>
+      <button
+        type="button"
+        className={`palette__chip palette__chip--group ${
+          groupMode ? "palette__chip--active" : ""
+        }`}
+        onClick={() => setGroupMode(!groupMode)}
+        title={
+          groupMode
+            ? "Click to cancel (Esc) — or drag a rectangle on the canvas to enclose nodes."
+            : "Click, then drag a rectangle on the canvas to group whatever it encloses."
+        }
+      >
+        {groupMode ? "Drawing… (Esc to cancel)" : "+ New group"}
+      </button>
     </div>
   );
 }

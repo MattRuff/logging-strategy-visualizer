@@ -65,6 +65,7 @@ export function PctEdge({
       : v.tbPerMonth;
   });
   const updateEdgePct = useStrategyStore((s) => s.updateEdgePct);
+  const onEdgesChange = useStrategyStore((s) => s.onEdgesChange);
 
   const unit = unitForTargetKind(targetKind);
   const volume = sourceVolume * (Math.max(0, Math.min(100, pct)) / 100);
@@ -108,6 +109,18 @@ export function PctEdge({
             disabled={volumeDisabled}
             onCommit={onVolumeChange}
           />
+          <button
+            type="button"
+            className="pct-edge-label__delete"
+            title="Delete this connection"
+            aria-label="Delete connection"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdgesChange([{ type: "remove", id }]);
+            }}
+          >
+            ×
+          </button>
         </div>
       </EdgeLabelRenderer>
     </>

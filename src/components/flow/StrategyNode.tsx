@@ -26,6 +26,7 @@ const kindLabel: Record<StrategyNodeData["kind"], string> = {
   index: "Index",
   archive: "Archive",
   archive_search: "Archive Search",
+  group: "Group",
 };
 
 const currency = new Intl.NumberFormat("en-US", {

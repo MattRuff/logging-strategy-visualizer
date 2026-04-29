@@ -11,8 +11,17 @@ import type { StrategyEdge, StrategyNode } from "./types";
  */
 
 const BASE = 80;
-const COL_GAP = 240; // along the flow direction
-const ROW_GAP = 160; // across the flow
+// Generous gaps so the edge label (PctEdge inputs ≈ 240×60 with the × delete
+// button) sits cleanly between nodes along the flow direction, and parallel
+// sibling edges don't collide.
+const COL_GAP = 360; // along the flow direction
+const ROW_GAP = 240; // across the flow
+
+// Group container fitting parameters.
+const GROUP_PADDING = 36; // buffer around enclosed nodes (left/right/bottom)
+const GROUP_HEADER = 36; // additional top padding for the header bar
+const NODE_W_ESTIMATE = 220;
+const NODE_H_ESTIMATE = 96;
 
 function computeRanks(
   nodes: StrategyNode[],
@@ -135,36 +144,204 @@ function barycenterOrder(
   }
 }
 
-/** Auto-layout entry point. Returns nodes with new positions; edges unchanged. */
+/**
+ * Within each layer, keep nodes that share a parent group contiguous so a
+ * group's bbox stays a tight cluster instead of striping across the lane and
+ * swallowing siblings of another group. Group order within a layer is
+ * preserved by mean barycenter index of its members.
+ */
+function clusterByParent(layers: StrategyNode[][]): void {
+  for (let li = 0; li < layers.length; li++) {
+    const layer = layers[li];
+    const buckets = new Map<string, { mean: number; nodes: StrategyNode[] }>();
+    layer.forEach((n, idx) => {
+      const key = n.parentId ?? "";
+      let b = buckets.get(key);
+      if (!b) {
+        b = { mean: 0, nodes: [] };
+        buckets.set(key, b);
+      }
+      b.nodes.push(n);
+      b.mean += idx;
+    });
+    for (const b of buckets.values()) b.mean /= b.nodes.length;
+    layers[li] = [...buckets.values()]
+      .sort((a, b) => a.mean - b.mean)
+      .flatMap((b) => b.nodes);
+  }
+}
+
+/**
+ * Auto-layout entry point. Returns nodes with new positions; edges unchanged.
+ *
+ * Group-aware: groups are excluded from the layered flow layout (they have no
+ * ports). Their children are laid out as if absolute, then each group is
+ * repositioned + resized to wrap its children with padding, and children's
+ * positions are converted back to be relative to the group.
+ */
 export function autoLayout(
   nodes: StrategyNode[],
   edges: StrategyEdge[],
   orientation: LayoutOrientation
 ): StrategyNode[] {
   if (nodes.length === 0) return nodes;
-  const rank = computeRanks(nodes, edges);
-  const layers = groupByRank(nodes, rank);
-  barycenterOrder(layers, edges);
 
-  // Center each layer around y=0 in cross-flow direction so the result fits
-  // tidily even when one layer has many more nodes than its neighbors.
-  const maxLayerSize = Math.max(...layers.map((l) => l.length));
-  const newPos = new Map<string, { x: number; y: number }>();
+  // Layout the connected flow ignoring group containers.
+  const flowNodes = nodes.filter((n) => n.type !== "group");
+  const rank = computeRanks(flowNodes, edges);
+  const layers = groupByRank(flowNodes, rank);
+  barycenterOrder(layers, edges);
+  clusterByParent(layers);
+
+  const maxLayerSize = Math.max(...layers.map((l) => l.length), 1);
+  const newAbs = new Map<string, { x: number; y: number }>();
   layers.forEach((layer, layerIdx) => {
     const offset = (maxLayerSize - layer.length) / 2;
     layer.forEach((n, slot) => {
       const flowCoord = BASE + layerIdx * COL_GAP;
       const crossCoord = BASE + (slot + offset) * ROW_GAP;
       if (orientation === "horizontal") {
-        newPos.set(n.id, { x: flowCoord, y: crossCoord });
+        newAbs.set(n.id, { x: flowCoord, y: crossCoord });
       } else {
-        newPos.set(n.id, { x: crossCoord, y: flowCoord });
+        newAbs.set(n.id, { x: crossCoord, y: flowCoord });
       }
     });
   });
 
+  // Push apart groups whose flow-axis bboxes overlap on the cross axis. We
+  // iterate by current cross-axis position so later groups slide further out.
+  // Children move with their group, which keeps inter-group edges valid (group
+  // size is recomputed below from the post-shift child positions).
+  const isHorizontal = orientation === "horizontal";
+  type Rect = {
+    groupId: string;
+    childIds: string[];
+    flowMin: number;
+    flowMax: number;
+    crossMin: number;
+    crossMax: number;
+  };
+  const computeRect = (g: StrategyNode): Rect | null => {
+    const children = nodes.filter((n) => n.parentId === g.id);
+    if (children.length === 0) return null;
+    const positions = children
+      .map((c) => ({ id: c.id, p: newAbs.get(c.id) }))
+      .filter((x): x is { id: string; p: { x: number; y: number } } => !!x.p);
+    if (positions.length === 0) return null;
+    const ws = children.map(
+      (c) => c.measured?.width ?? c.width ?? NODE_W_ESTIMATE
+    );
+    const hs = children.map(
+      (c) => c.measured?.height ?? c.height ?? NODE_H_ESTIMATE
+    );
+    const xs = positions.map((x) => x.p.x);
+    const ys = positions.map((x) => x.p.y);
+    const xe = positions.map((x, i) => x.p.x + ws[i]);
+    const ye = positions.map((x, i) => x.p.y + hs[i]);
+    const flowMin = isHorizontal
+      ? Math.min(...xs) - GROUP_PADDING
+      : Math.min(...ys) - GROUP_PADDING - GROUP_HEADER;
+    const flowMax = isHorizontal
+      ? Math.max(...xe) + GROUP_PADDING
+      : Math.max(...ye) + GROUP_PADDING;
+    const crossMin = isHorizontal
+      ? Math.min(...ys) - GROUP_PADDING - GROUP_HEADER
+      : Math.min(...xs) - GROUP_PADDING;
+    const crossMax = isHorizontal
+      ? Math.max(...ye) + GROUP_PADDING
+      : Math.max(...xe) + GROUP_PADDING;
+    return {
+      groupId: g.id,
+      childIds: positions.map((x) => x.id),
+      flowMin,
+      flowMax,
+      crossMin,
+      crossMax,
+    };
+  };
+
+  const rects = nodes
+    .filter((n) => n.type === "group")
+    .map(computeRect)
+    .filter((r): r is Rect => !!r);
+  rects.sort((a, b) => a.crossMin - b.crossMin);
+  for (let i = 1; i < rects.length; i++) {
+    for (let j = 0; j < i; j++) {
+      const A = rects[j];
+      const B = rects[i];
+      const flowOverlap = !(A.flowMax <= B.flowMin || B.flowMax <= A.flowMin);
+      const crossOverlap = !(A.crossMax <= B.crossMin || B.crossMax <= A.crossMin);
+      if (flowOverlap && crossOverlap) {
+        const shift = A.crossMax - B.crossMin + GROUP_PADDING;
+        for (const id of B.childIds) {
+          const p = newAbs.get(id);
+          if (!p) continue;
+          if (isHorizontal) p.y += shift;
+          else p.x += shift;
+        }
+        B.crossMin += shift;
+        B.crossMax += shift;
+      }
+    }
+  }
+
+  // For each group: compute children bbox (absolute) → resize + reposition the
+  // group with padding, then convert children to relative coords.
+  const groupResults = new Map<
+    string,
+    { pos: { x: number; y: number }; size: { width: number; height: number } }
+  >();
+  for (const g of nodes) {
+    if (g.type !== "group") continue;
+    const children = nodes.filter((n) => n.parentId === g.id);
+    if (children.length === 0) continue;
+    const positions = children
+      .map((c) => newAbs.get(c.id))
+      .filter((p): p is { x: number; y: number } => !!p);
+    if (positions.length === 0) continue;
+    const ws = children.map(
+      (c) => c.measured?.width ?? c.width ?? NODE_W_ESTIMATE
+    );
+    const hs = children.map(
+      (c) => c.measured?.height ?? c.height ?? NODE_H_ESTIMATE
+    );
+    const minX = Math.min(...positions.map((p) => p.x));
+    const minY = Math.min(...positions.map((p) => p.y));
+    const maxX = Math.max(...positions.map((p, i) => p.x + ws[i]));
+    const maxY = Math.max(...positions.map((p, i) => p.y + hs[i]));
+    groupResults.set(g.id, {
+      pos: {
+        x: minX - GROUP_PADDING,
+        y: minY - GROUP_PADDING - GROUP_HEADER,
+      },
+      size: {
+        width: maxX - minX + GROUP_PADDING * 2,
+        height: maxY - minY + GROUP_PADDING * 2 + GROUP_HEADER,
+      },
+    });
+  }
+
   return nodes.map((n) => {
-    const p = newPos.get(n.id);
-    return p ? { ...n, position: p } : n;
+    if (n.type === "group") {
+      const r = groupResults.get(n.id);
+      if (!r) return n;
+      return {
+        ...n,
+        position: r.pos,
+        style: { ...(n.style ?? {}), width: r.size.width, height: r.size.height },
+      };
+    }
+    const abs = newAbs.get(n.id);
+    if (!abs) return n;
+    if (n.parentId) {
+      const g = groupResults.get(n.parentId);
+      if (g) {
+        return {
+          ...n,
+          position: { x: abs.x - g.pos.x, y: abs.y - g.pos.y },
+        };
+      }
+    }
+    return { ...n, position: abs };
   });
 }

@@ -10,6 +10,14 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
   }
 }
 
@@ -19,12 +27,14 @@ provider "aws" {
   default_tags {
     tags = {
       Project   = var.project_name
+      Tier      = "experimental"
       ManagedBy = "terraform"
+      service   = "logging-workflow"
     }
   }
 }
 
-# ACM certificates used by CloudFront must live in us-east-1.
+# ACM certs used by CloudFront must live in us-east-1.
 provider "aws" {
   alias  = "us_east_1"
   region = "us-east-1"
@@ -32,7 +42,9 @@ provider "aws" {
   default_tags {
     tags = {
       Project   = var.project_name
+      Tier      = "experimental"
       ManagedBy = "terraform"
+      service   = "logging-workflow"
     }
   }
 }
