@@ -54,7 +54,7 @@ export function Landing() {
         <div className="landing__brand">
           <span className="landing__mark" aria-hidden="true">DD</span>
           <div>
-            <div className="landing__eyebrow">Datadog · experimental</div>
+            <div className="landing__eyebrow">Datadog · prod</div>
             <h1 className="landing__title">Logging strategy visualizer</h1>
           </div>
           <div style={authChipWrap}>

@@ -72,7 +72,7 @@ variable "datadog_site" {
 variable "datadog_env" {
   type        = string
   description = "Datadog `env` tag for traces/logs."
-  default     = "experimental"
+  default     = "prod"
 }
 
 variable "datadog_extension_layer_arn" {

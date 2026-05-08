@@ -9,7 +9,7 @@ export function SubPageHeader({ title }: { title: string }) {
         <Link to="/" className="toolbar__brand-link" title="Back to start">
           <span className="toolbar__mark" aria-hidden="true">DD</span>
           <div className="toolbar__titles">
-            <span className="toolbar__product">Datadog · experimental</span>
+            <span className="toolbar__product">Datadog · prod</span>
             <span className="toolbar__subtitle">{title}</span>
           </div>
         </Link>
