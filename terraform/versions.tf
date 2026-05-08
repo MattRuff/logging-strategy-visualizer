@@ -31,7 +31,7 @@ provider "aws" {
   default_tags {
     tags = {
       Project                  = var.project_name
-      Tier                     = "experimental"
+      Tier                     = "prod"
       ManagedBy                = "terraform"
       service                  = "logging-workflow"
       creator                  = "matthew.ruyffelaert"
@@ -49,7 +49,7 @@ provider "aws" {
   default_tags {
     tags = {
       Project                  = var.project_name
-      Tier                     = "experimental"
+      Tier                     = "prod"
       ManagedBy                = "terraform"
       service                  = "logging-workflow"
       creator                  = "matthew.ruyffelaert"
