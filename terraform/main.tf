@@ -23,6 +23,12 @@ resource "random_id" "suffix" {
   byte_length = 4
 }
 
+# Git commit SHA + repo URL for Datadog source-code integration.
+# Re-evaluated on every plan; runs git locally — does not need AWS creds.
+data "external" "git" {
+  program = ["bash", "${path.module}/git-info.sh"]
+}
+
 # -------------------------------------------------------------------
 # DynamoDB — workloads table (per-user + archive partitions)
 # -------------------------------------------------------------------
@@ -271,6 +277,9 @@ resource "aws_lambda_function" "fn" {
       DD_SITE                    = var.datadog_site
       DD_SERVICE                 = "logging-workflow"
       DD_ENV                     = var.datadog_env
+      DD_VERSION                 = data.external.git.result.commit_sha
+      DD_GIT_COMMIT_SHA          = data.external.git.result.commit_sha
+      DD_GIT_REPOSITORY_URL      = data.external.git.result.repository_url
       DD_TRACE_ENABLED           = "true"
       DD_SERVERLESS_LOGS_ENABLED = "true"
       DD_MERGE_XRAY_TRACES       = "true"
@@ -282,14 +291,6 @@ resource "aws_lambda_function" "fn" {
     aws_secretsmanager_secret_version.datadog_api_key,
     aws_iam_role_policy.lambda_dd_secret,
   ]
-
-  # The deploy workflow merges per-commit Datadog source-code env vars
-  # (DD_GIT_COMMIT_SHA, DD_GIT_REPOSITORY_URL, DD_VERSION) into the function
-  # config on every push. Ignore the environment block so Terraform does not
-  # fight that workflow on the next plan.
-  lifecycle {
-    ignore_changes = [environment]
-  }
 }
 
 # -------------------------------------------------------------------

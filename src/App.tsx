@@ -5,6 +5,7 @@ import { AuthCallback } from "@/pages/AuthCallback";
 import { Archive } from "@/pages/Archive";
 import { Landing } from "@/pages/Landing";
 import { MyWorkloads } from "@/pages/MyWorkloads";
+import { ResendVerification } from "@/pages/ResendVerification";
 import {
   HybridRoute,
   PricingRoute,
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/archive" element={<Archive />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/resend" element={<ResendVerification />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>

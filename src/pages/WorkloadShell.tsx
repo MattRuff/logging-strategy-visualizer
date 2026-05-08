@@ -56,7 +56,7 @@ export function WorkloadShell({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [accessToken, id, archive]);
 
-  const status = useAutoSave({
+  const { status, saveNow } = useAutoSave({
     workloadId: id,
     workloadName: name,
     readOnly,
@@ -82,6 +82,7 @@ export function WorkloadShell({ children }: { children: ReactNode }) {
         onWorkloadNameChange={handleNameChange}
         readOnly={readOnly}
         saveStatus={status}
+        onSave={saveNow}
       />
       {loadError && (
         <div

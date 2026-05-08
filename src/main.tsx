@@ -19,6 +19,18 @@ datadogRum.init({
   trackUserInteractions: true,
   trackLongTasks: true,
   defaultPrivacyLevel: "mask-user-input",
+  // Datadog source code integration: link errors back to GitHub at the right commit.
+  // Requires the Datadog GitHub integration to be installed in the Datadog UI.
+  beforeSend: (event) => {
+    // Drop noise from browser extensions trying to inject scripts.
+    if (event.type === "error" && event.error?.message?.includes("[RUM Injector]")) {
+      return false;
+    }
+    if (event.type === "error" && event.error?.stack?.includes("chrome-extension://")) {
+      return false;
+    }
+    return true;
+  },
   allowedTracingUrls: [
     (url: string) => url.startsWith(runtime.apiBaseUrl) || url.startsWith(window.location.origin),
   ],

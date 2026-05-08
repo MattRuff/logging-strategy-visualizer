@@ -16,44 +16,63 @@ interface AutoSaveOptions {
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+export interface AutoSaveResult {
+  status: SaveStatus;
+  saveNow: () => void;
+}
+
+const buildPayload = (state = useStrategyStore.getState()) => ({
+  v: 3 as const,
+  nodes: state.nodes,
+  edges: state.edges,
+  pricingOverrides: state.pricingOverrides,
+  flexComputeTier: state.flexComputeTier,
+  layoutOrientation: state.layoutOrientation,
+});
+
 /**
  * Subscribes to the stable strategyStore and PUTs the serialized graph
  * to /api/workloads/:id ~1.5s after the user stops editing. No-op while
  * signed out or while the readOnly flag is true.
+ *
+ * Returns { status, saveNow } — saveNow() flushes immediately.
  */
-export function useAutoSave({ workloadId, workloadName, readOnly, saveOnMount }: AutoSaveOptions): SaveStatus {
+export function useAutoSave({ workloadId, workloadName, readOnly, saveOnMount }: AutoSaveOptions): AutoSaveResult {
   const { accessToken } = useAuth();
   const [status, setStatus] = useState<SaveStatus>("idle");
   const lastSerializedRef = useRef<string | null>(null);
   const timerRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
 
+  // Keep a stable ref to the latest accessToken/workloadId/workloadName so
+  // saveNow() can use them without being re-created on every render.
+  const ctxRef = useRef({ accessToken, workloadId, workloadName });
+  useEffect(() => { ctxRef.current = { accessToken, workloadId, workloadName }; });
+
+  const doSave = useRef(async (payload: unknown) => {
+    const { accessToken: tok, workloadId: wid, workloadName: wname } = ctxRef.current;
+    if (!tok || inFlightRef.current) return;
+    inFlightRef.current = true;
+    setStatus("saving");
+    try {
+      await workloadApi.save(tok, wid, wname, payload);
+      setStatus("saved");
+    } catch (err) {
+      console.error("autosave failed", err);
+      setStatus("error");
+    } finally {
+      inFlightRef.current = false;
+    }
+  }).current;
+
+  const saveNow = useRef(() => {
+    if (!ctxRef.current.accessToken || readOnly) return;
+    if (timerRef.current !== null) { window.clearTimeout(timerRef.current); timerRef.current = null; }
+    void doSave(buildPayload());
+  }).current;
+
   useEffect(() => {
     if (!accessToken || readOnly) return;
-
-    const doSave = async (payload: unknown) => {
-      if (inFlightRef.current) return;
-      inFlightRef.current = true;
-      setStatus("saving");
-      try {
-        await workloadApi.save(accessToken, workloadId, workloadName, payload);
-        setStatus("saved");
-      } catch (err) {
-        console.error("autosave failed", err);
-        setStatus("error");
-      } finally {
-        inFlightRef.current = false;
-      }
-    };
-
-    const buildPayload = (state = useStrategyStore.getState()) => ({
-      v: 3 as const,
-      nodes: state.nodes,
-      edges: state.edges,
-      pricingOverrides: state.pricingOverrides,
-      flexComputeTier: state.flexComputeTier,
-      layoutOrientation: state.layoutOrientation,
-    });
 
     if (saveOnMount) {
       const payload = buildPayload();
@@ -80,7 +99,7 @@ export function useAutoSave({ workloadId, workloadName, readOnly, saveOnMount }:
         timerRef.current = null;
       }
     };
-  }, [accessToken, workloadId, workloadName, readOnly, saveOnMount]);
+  }, [accessToken, workloadId, workloadName, readOnly, saveOnMount, doSave]);
 
-  return status;
+  return { status, saveNow };
 }

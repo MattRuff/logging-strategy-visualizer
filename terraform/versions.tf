@@ -18,6 +18,10 @@ terraform {
       source  = "hashicorp/null"
       version = "~> 3.2"
     }
+    external = {
+      source  = "hashicorp/external"
+      version = "~> 2.3"
+    }
   }
 }
 
@@ -26,10 +30,13 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project   = var.project_name
-      Tier      = "experimental"
-      ManagedBy = "terraform"
-      service   = "logging-workflow"
+      Project                  = var.project_name
+      Tier                     = "experimental"
+      ManagedBy                = "terraform"
+      service                  = "logging-workflow"
+      creator                  = "matthew.ruyffelaert"
+      team                     = "enterprise-sales-engineering"
+      please_keep_my_resource  = "true"
     }
   }
 }
@@ -41,10 +48,13 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project   = var.project_name
-      Tier      = "experimental"
-      ManagedBy = "terraform"
-      service   = "logging-workflow"
+      Project                  = var.project_name
+      Tier                     = "experimental"
+      ManagedBy                = "terraform"
+      service                  = "logging-workflow"
+      creator                  = "matthew.ruyffelaert"
+      team                     = "enterprise-sales-engineering"
+      please_keep_my_resource  = "true"
     }
   }
 }

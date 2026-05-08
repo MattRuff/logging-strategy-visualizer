@@ -27,6 +27,7 @@ interface ExpToolbarProps {
   onWorkloadNameChange: (name: string) => void;
   readOnly: boolean;
   saveStatus: "idle" | "saving" | "saved" | "error";
+  onSave: () => void;
 }
 
 function newWorkloadId(): string {
@@ -129,6 +130,7 @@ export function ExpToolbar({
   onWorkloadNameChange,
   readOnly,
   saveStatus,
+  onSave,
 }: ExpToolbarProps) {
   const { accessToken, email, signIn, signOut } = useAuth();
   const navigate = useNavigate();
@@ -270,6 +272,13 @@ export function ExpToolbar({
               <>
                 <MenuItem onClick={() => handleNew(close)} disabled={!accessToken}>
                   New scenario
+                </MenuItem>
+                <MenuItem
+                  onClick={() => { onSave(); close(); }}
+                  disabled={!accessToken || readOnly}
+                  shortcut="⌘S"
+                >
+                  Save
                 </MenuItem>
                 <MenuItem onClick={() => handleSaveAs(close)} disabled={!accessToken}>
                   Save as…

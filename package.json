@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && VITE_BUILD_VERSION=$(git rev-parse HEAD) vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "upload-sourcemaps": "datadog-ci sourcemaps upload ./dist/assets --service=logging-workflow --release-version=$(git rev-parse HEAD) --minified-path-prefix=/assets",
+    "deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
     "@datadog/browser-rum": "^6.33.0",
@@ -22,6 +24,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@datadog/datadog-ci": "^5.16.1",
     "@types/node": "^22.10.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

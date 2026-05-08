@@ -66,9 +66,14 @@ export function Landing() {
                 </button>
               </>
             ) : (
-              <button type="button" style={primaryBtn} onClick={() => signIn()}>
-                Sign in
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                <button type="button" style={primaryBtn} onClick={() => signIn()}>
+                  Sign in
+                </button>
+                <Link to="/auth/resend" style={{ fontSize: 12, color: "#666" }}>
+                  Didn't get a verification email?
+                </Link>
+              </div>
             )}
           </div>
         </div>
