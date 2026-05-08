@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { User } from "oidc-client-ts";
+import { datadogRum } from "@datadog/browser-rum";
 import {
   getCurrentUser,
   getUserManager,
@@ -54,6 +55,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mgr.events.removeAccessTokenExpired(onUnloaded);
     };
   }, []);
+
+  // Tag every RUM event with the signed-in user so sessions, errors, and
+  // replays in Datadog can be filtered/searched by user identity. Cleared on
+  // sign-out and on token expiry. id is the Cognito sub (stable across
+  // email changes); email/name displayed in the RUM UI.
+  useEffect(() => {
+    if (user && !user.expired) {
+      const id = (user.profile?.sub as string | undefined) ?? "";
+      const email = (user.profile?.email as string | undefined) ?? undefined;
+      const name = (user.profile?.name as string | undefined) ?? email;
+      datadogRum.setUser({ id, email, name });
+    } else {
+      datadogRum.clearUser();
+    }
+  }, [user]);
 
   const boundSignIn = useCallback(() => signIn(), []);
   const boundSignOut = useCallback(() => signOut(), []);
