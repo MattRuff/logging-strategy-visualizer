@@ -19,6 +19,11 @@ export function getUserManager(): UserManager {
     response_type: "code",
     scope: "openid email profile",
     userStore: new WebStorageStateStore({ store: window.localStorage }),
+    // Refresh the access token via the refresh-token grant ~60s before it
+    // expires, so background work like autosave doesn't fire 401s the moment
+    // the 1-hour token lapses.
+    automaticSilentRenew: true,
+    accessTokenExpiringNotificationTimeInSeconds: 60,
   });
 
   return cached;

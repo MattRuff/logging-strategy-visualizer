@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       email: (user?.profile?.email as string | undefined) ?? null,
-      accessToken: user?.access_token ?? null,
+      accessToken: user && !user.expired ? user.access_token : null,
       loading,
       signIn: boundSignIn,
       signOut: boundSignOut,
