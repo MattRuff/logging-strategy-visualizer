@@ -194,6 +194,13 @@ data "aws_iam_policy_document" "lambda_ddb" {
       "${aws_dynamodb_table.workloads.arn}/index/*",
     ]
   }
+
+  statement {
+    sid     = "CognitoAdminGetUser"
+    effect  = "Allow"
+    actions = ["cognito-idp:AdminGetUser"]
+    resources = [aws_cognito_user_pool.main.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "lambda_ddb" {
@@ -274,6 +281,7 @@ resource "aws_lambda_function" "fn" {
   environment {
     variables = {
       WORKLOADS_TABLE            = aws_dynamodb_table.workloads.name
+      COGNITO_USER_POOL_ID       = aws_cognito_user_pool.main.id
       COGNITO_ISSUER             = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.main.id}"
       DD_LAMBDA_HANDLER          = each.value.handler
       DD_API_KEY_SECRET_ARN      = aws_secretsmanager_secret.datadog_api_key.arn

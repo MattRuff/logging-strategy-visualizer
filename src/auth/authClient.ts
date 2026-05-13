@@ -38,7 +38,15 @@ export async function handleCallback(): Promise<User> {
 }
 
 export async function signOut(): Promise<void> {
-  await getUserManager().signoutRedirect();
+  // Cognito's /logout endpoint requires `client_id` and `logout_uri` query
+  // params instead of the OIDC-standard `id_token_hint` +
+  // `post_logout_redirect_uri` that oidc-client-ts sends by default.
+  await getUserManager().signoutRedirect({
+    extraQueryParams: {
+      client_id: runtime.cognitoClientId,
+      logout_uri: `${window.location.origin}/`,
+    },
+  });
 }
 
 export async function getCurrentUser(): Promise<User | null> {

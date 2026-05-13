@@ -4,16 +4,17 @@
 
 import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE, wlSk, ARCHIVE_PK } from "../shared/ddb.mjs";
-import { getCallerSub, getCallerEmail } from "../shared/auth.mjs";
+import { getCallerSub } from "../shared/auth.mjs";
 import { ok, forbidden, badRequest, notFound, serverError, parseJsonBody } from "../shared/http.mjs";
 import { makeLogger } from "../shared/log.mjs";
 import { isAdminEmail } from "../shared/admins.mjs";
+import { resolveCallerEmail } from "../shared/userEmail.mjs";
 
 export const handler = async (event, context) => {
   const log = makeLogger(event, context);
   try {
     getCallerSub(event);
-    const callerEmail = getCallerEmail(event);
+    const callerEmail = await resolveCallerEmail(event);
     if (!(await isAdminEmail(callerEmail))) {
       return forbidden("Only admins can pin templates");
     }
