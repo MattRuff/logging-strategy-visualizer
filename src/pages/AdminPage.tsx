@@ -235,66 +235,6 @@ export function AdminPage() {
       </header>
 
       <section className="admin__section">
-        <h2 className="admin__section-title">Template admins</h2>
-        <p style={{ margin: "0 0 12px", color: "var(--dd-text-muted)", fontSize: 14 }}>
-          Admins publish official templates (pinned to the top of the templates list) and can promote
-          other users to admin.
-        </p>
-        {!accessToken && (
-          <p style={{ color: "var(--dd-text-muted)", fontSize: 14 }}>Sign in to view template admins.</p>
-        )}
-        {adminsError && <p style={{ color: "crimson", fontSize: 13 }}>{adminsError}</p>}
-        {accessToken && !admins && !adminsError && (
-          <p style={{ color: "var(--dd-text-muted)", fontSize: 14 }}>Loading…</p>
-        )}
-        {admins && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {admins.map((e) => (
-                <li
-                  key={e}
-                  style={{
-                    padding: "4px 10px",
-                    background: "var(--dd-bg-subtle)",
-                    border: "1px solid var(--dd-border)",
-                    borderRadius: 999,
-                    fontSize: 13,
-                  }}
-                >
-                  {e}
-                </li>
-              ))}
-            </ul>
-            {isCallerAdmin ? (
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input
-                  type="email"
-                  placeholder="teammate@datadoghq.com"
-                  value={newAdminEmail}
-                  onChange={(e) => setNewAdminEmail(e.target.value)}
-                  style={{ padding: "6px 10px", borderRadius: "var(--dd-radius)", border: "1px solid var(--dd-border)", fontSize: 13, minWidth: 280 }}
-                  disabled={adminBusy}
-                />
-                <button
-                  type="button"
-                  className="toolbar__btn toolbar__btn--primary"
-                  style={{ background: "var(--dd-purple)", color: "#fff" }}
-                  onClick={() => void handleAddAdmin()}
-                  disabled={adminBusy || !newAdminEmail.trim()}
-                >
-                  {adminBusy ? "Adding…" : "Promote to admin"}
-                </button>
-              </div>
-            ) : (
-              <p style={{ color: "var(--dd-text-muted)", fontSize: 13, margin: 0 }}>
-                Only existing admins can promote other users.
-              </p>
-            )}
-          </div>
-        )}
-      </section>
-
-      <section className="admin__section">
         <h2 className="admin__section-title">Unit prices</h2>
         {Object.entries(grouped).map(([category, rows]) => (
           <div key={category} className="admin__price-group">
@@ -474,6 +414,67 @@ export function AdminPage() {
             </p>
           </article>
         </div>
+      </section>
+
+      <section className="admin__section">
+        <h2 className="admin__section-title">Template admins</h2>
+        <p style={{ margin: "0 0 12px", color: "var(--dd-text-muted)", fontSize: 14 }}>
+          Admins publish official templates (pinned to the top of the templates list), can pin or
+          unpin any template from <Link to="/templates" style={{ color: "var(--dd-purple)" }}>the templates page</Link>,
+          and can promote other users to admin.
+        </p>
+        {!accessToken && (
+          <p style={{ color: "var(--dd-text-muted)", fontSize: 14 }}>Sign in to view template admins.</p>
+        )}
+        {adminsError && <p style={{ color: "crimson", fontSize: 13 }}>{adminsError}</p>}
+        {accessToken && !admins && !adminsError && (
+          <p style={{ color: "var(--dd-text-muted)", fontSize: 14 }}>Loading…</p>
+        )}
+        {admins && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {admins.map((e) => (
+                <li
+                  key={e}
+                  style={{
+                    padding: "4px 10px",
+                    background: "var(--dd-bg-subtle)",
+                    border: "1px solid var(--dd-border)",
+                    borderRadius: 999,
+                    fontSize: 13,
+                  }}
+                >
+                  {e}
+                </li>
+              ))}
+            </ul>
+            {isCallerAdmin ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="email"
+                  placeholder="teammate@datadoghq.com"
+                  value={newAdminEmail}
+                  onChange={(e) => setNewAdminEmail(e.target.value)}
+                  style={{ padding: "6px 10px", borderRadius: "var(--dd-radius)", border: "1px solid var(--dd-border)", fontSize: 13, minWidth: 280 }}
+                  disabled={adminBusy}
+                />
+                <button
+                  type="button"
+                  className="toolbar__btn toolbar__btn--primary"
+                  style={{ background: "var(--dd-purple)", color: "#fff" }}
+                  onClick={() => void handleAddAdmin()}
+                  disabled={adminBusy || !newAdminEmail.trim()}
+                >
+                  {adminBusy ? "Adding…" : "Promote to admin"}
+                </button>
+              </div>
+            ) : (
+              <p style={{ color: "var(--dd-text-muted)", fontSize: 13, margin: 0 }}>
+                Only existing admins can promote other users.
+              </p>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );

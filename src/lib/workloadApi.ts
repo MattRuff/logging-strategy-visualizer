@@ -109,4 +109,11 @@ export const workloadApi = {
       body: JSON.stringify({ email }),
     });
   },
+  setTemplatePin(accessToken: string, id: string, pinned: boolean) {
+    return request<{ id: string; isOfficial: boolean }>(
+      accessToken,
+      `/archive/${encodeURIComponent(id)}/pin`,
+      { method: "POST", body: JSON.stringify({ pinned }) }
+    );
+  },
 };

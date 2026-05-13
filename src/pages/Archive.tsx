@@ -8,6 +8,8 @@ export function Archive() {
   const { accessToken, signIn } = useAuth();
   const [items, setItems] = useState<TemplateSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isCallerAdmin, setIsCallerAdmin] = useState(false);
+  const [pinBusyId, setPinBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -15,7 +17,27 @@ export function Archive() {
       .listTemplates(accessToken)
       .then((r) => setItems(r.workloads))
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+    workloadApi
+      .listAdmins(accessToken)
+      .then((r) => setIsCallerAdmin(r.isCallerAdmin))
+      .catch(() => setIsCallerAdmin(false));
   }, [accessToken]);
+
+  const handleTogglePin = async (id: string, next: boolean) => {
+    if (!accessToken) return;
+    setPinBusyId(id);
+    setError(null);
+    try {
+      await workloadApi.setTemplatePin(accessToken, id, next);
+      setItems((prev) =>
+        prev ? prev.map((it) => (it.id === id ? { ...it, isOfficial: next } : it)) : prev
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPinBusyId(null);
+    }
+  };
 
   // Officials first, then by publishedAt desc. Stable on the existing publishedAt sort.
   const sorted = useMemo(() => {
@@ -62,6 +84,7 @@ export function Archive() {
                       <th style={th}>Name</th>
                       <th style={th}>Published by</th>
                       <th style={th}>Published at</th>
+                      {isCallerAdmin && <th style={{ ...th, textAlign: "center" }}>Pin to top</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -75,6 +98,18 @@ export function Archive() {
                         </td>
                         <td style={{ ...td, color: "var(--dd-text-muted)" }}>{it.ownerEmail ?? "—"}</td>
                         <td style={{ ...td, color: "var(--dd-text-muted)" }}>{new Date(it.publishedAt).toLocaleString()}</td>
+                        {isCallerAdmin && (
+                          <td style={{ ...td, textAlign: "center" }}>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(it.isOfficial)}
+                              disabled={pinBusyId === it.id}
+                              onChange={(e) => void handleTogglePin(it.id, e.target.checked)}
+                              aria-label={it.isOfficial ? "Unpin template" : "Pin template to top"}
+                              title={it.isOfficial ? "Unpin from top" : "Pin to top"}
+                            />
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
