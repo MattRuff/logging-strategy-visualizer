@@ -49,6 +49,7 @@ const SECTIONS: Section[] = [
         title: "Flex Starter",
         hint: "Flex Logs Starter — pay-per-event, no compute",
       },
+      { kind: "siem", title: "SIEM", hint: "Cloud SIEM (volume-tier $/GB)" },
       {
         kind: "archive_search",
         title: "Archive Search",
