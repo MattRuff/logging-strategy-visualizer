@@ -376,7 +376,9 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     });
   }
 
-  if (hasFlexNode && flexLeaves.length > 0 && !flexStorageRowAdded) {
+  // Always surface a Flex Storage row when a flex node exists, even if no flow
+  // reaches it yet — otherwise users miss the SKU when first laying out the graph.
+  if (hasFlexNode && !flexStorageRowAdded) {
     rows.push(buildFlexStorageLineItem());
   }
 
