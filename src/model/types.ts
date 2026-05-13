@@ -29,6 +29,12 @@ export interface StrategyNodeData extends Record<string, unknown> {
   flexRetentionDays?: number;
   /** Group: persistent color used on the canvas + spend bar so each group is distinct. */
   groupColor?: string;
+  /** User-authored note for the cost sheet row tied to this node. */
+  notes?: string;
+  /** Editable override for OP units (vCPU). Falls back to ceil(TB/day) when undefined. */
+  opUnitsOverride?: number;
+  /** Editable override for monthly quantity on the cost sheet. */
+  qtyOverride?: number;
 }
 
 export type StrategyNode = Node<StrategyNodeData>;
@@ -76,6 +82,8 @@ export interface LineItem {
   groupName?: string;
   /** Per-group color (cached so the spend bar / sheet styling can reuse it) */
   groupColor?: string;
+  /** Free-form note carried through to the cost sheet's Notes column. */
+  notes?: string;
 }
 
 export interface SplitValidation {
