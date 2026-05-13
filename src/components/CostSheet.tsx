@@ -99,61 +99,22 @@ export function CostSheet() {
         },
       }),
       helper.display({
-        id: "nodeLabel",
-        size: 160,
-        header: "Name",
+        id: "nameDescription",
+        size: 320,
+        header: "Name / Description",
         cell: (ctx) => {
           const row = ctx.row.original;
-          if (row.lineKind === "flex_compute") {
-            return <span className="sheet-muted">—</span>;
-          }
-          if (row.lineKind === "flex_aggregate") {
-            const v = row.nodeLabel;
-            return v != null && v !== "" ? (
-              <span className="sheet-name">{v}</span>
-            ) : (
-              <span className="sheet-muted">—</span>
-            );
-          }
-          if (row.lineKind !== "node" || !row.routeNodeId) {
-            const v = row.nodeLabel;
-            return v != null && v !== "" ? (
-              <span className="sheet-name">{v}</span>
-            ) : (
-              <span className="sheet-muted">—</span>
-            );
-          }
-          return (
-            <input
-              className="sheet-input sheet-input--blue"
-              type="text"
-              defaultValue={row.nodeLabel ?? ""}
-              key={`${row.id}-name-${row.nodeLabel}`}
-              onBlur={(e) =>
-                updateNodeData(row.routeNodeId!, {
-                  label: e.target.value,
-                })
-              }
-            />
-          );
-        },
-      }),
-      helper.display({
-        id: "description",
-        size: 240,
-        header: "Description",
-        cell: (ctx) => {
-          const row = ctx.row.original;
-          if (row.lineKind === "flex_aggregate" && row.routeNodeId) {
-            const raw =
-              nodes.find((n) => n.id === row.routeNodeId)?.data
-                .flexRetentionDays ?? 30;
-            const days = FLEX_RETENTION_DAY_OPTIONS.includes(raw)
-              ? raw
-              : nearestFlexRetentionDays(raw);
-            return (
-              <div className="sheet-desc-row">
-                <span className="sheet-desc-text">{row.description}</span>
+          // Inline retention selectors stay rendered alongside the editable name
+          // so the combined column carries everything Name + Description did.
+          const retentionWidget = (() => {
+            if (row.lineKind === "flex_aggregate" && row.routeNodeId) {
+              const raw =
+                nodes.find((n) => n.id === row.routeNodeId)?.data
+                  .flexRetentionDays ?? 30;
+              const days = FLEX_RETENTION_DAY_OPTIONS.includes(raw)
+                ? raw
+                : nearestFlexRetentionDays(raw);
+              return (
                 <select
                   className="sheet-select"
                   value={days}
@@ -170,16 +131,13 @@ export function CostSheet() {
                     </option>
                   ))}
                 </select>
-              </div>
-            );
-          }
-          if (row.lineKind === "node" && row.routeNodeId) {
-            const node = nodes.find((n) => n.id === row.routeNodeId);
-            if (node?.data.kind === "index") {
-              const days = node.data.retentionDays ?? 3;
-              return (
-                <div className="sheet-desc-row">
-                  <span className="sheet-desc-text">{row.description}</span>
+              );
+            }
+            if (row.lineKind === "node" && row.routeNodeId) {
+              const node = nodes.find((n) => n.id === row.routeNodeId);
+              if (node?.data.kind === "index") {
+                const days = node.data.retentionDays ?? 3;
+                return (
                   <select
                     className="sheet-select"
                     value={days}
@@ -187,7 +145,7 @@ export function CostSheet() {
                       const d = Number(e.target.value);
                       updateNodeData(row.routeNodeId!, {
                         retentionDays: d,
-                        label: `Indexed ${d}d`,
+                        label: `Standard Logs (${d}d)`,
                       });
                     }}
                   >
@@ -196,12 +154,39 @@ export function CostSheet() {
                     <option value={15}>15d</option>
                     <option value={30}>30d</option>
                   </select>
-                </div>
-              );
+                );
+              }
             }
-          }
+            return null;
+          })();
+
+          const nameDisplay =
+            row.lineKind === "node" && row.routeNodeId ? (
+              <input
+                className="sheet-input sheet-input--blue"
+                type="text"
+                defaultValue={row.nodeLabel ?? row.description}
+                key={`${row.id}-name-${row.nodeLabel}`}
+                onBlur={(e) =>
+                  updateNodeData(row.routeNodeId!, {
+                    label: e.target.value,
+                  })
+                }
+              />
+            ) : (
+              <span className="sheet-name">
+                {row.nodeLabel || row.description || "—"}
+              </span>
+            );
+
           return (
-            <span className="sheet-input--blue">{row.description}</span>
+            <div className="sheet-desc-row">
+              {nameDisplay}
+              {row.lineKind !== "node" || row.nodeLabel !== row.description ? (
+                <span className="sheet-desc-sub">{row.description}</span>
+              ) : null}
+              {retentionWidget}
+            </div>
           );
         },
       }),
