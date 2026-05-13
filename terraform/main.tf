@@ -11,6 +11,7 @@ locals {
     listArchive     = { handler = "listArchive/index.handler", method = "GET", route = "/api/archive" }
     listAdmins      = { handler = "listAdmins/index.handler", method = "GET", route = "/api/admins" }
     addAdmin        = { handler = "addAdmin/index.handler", method = "POST", route = "/api/admins" }
+    setTemplatePin  = { handler = "setTemplatePin/index.handler", method = "POST", route = "/api/archive/{id}/pin" }
   }
 }
 
