@@ -61,10 +61,72 @@ export function CostSheet() {
       helper.display({
         id: "displayType",
         header: "Type",
-        cell: (ctx) => (
-          <TypeBadge displayType={ctx.row.original.displayType} />
-        ),
-        size: 120,
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          const retentionWidget = (() => {
+            if (row.lineKind === "flex_aggregate" && row.routeNodeId) {
+              const raw =
+                nodes.find((n) => n.id === row.routeNodeId)?.data
+                  .flexRetentionDays ?? 30;
+              const days = FLEX_RETENTION_DAY_OPTIONS.includes(raw)
+                ? raw
+                : nearestFlexRetentionDays(raw);
+              return (
+                <select
+                  className="sheet-select"
+                  value={days}
+                  onChange={(e) => {
+                    const d = Number(e.target.value);
+                    updateNodeData(row.routeNodeId!, {
+                      flexRetentionDays: d,
+                    });
+                  }}
+                >
+                  {FLEX_RETENTION_DAY_OPTIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {d}d
+                    </option>
+                  ))}
+                </select>
+              );
+            }
+            if (row.lineKind === "node" && row.routeNodeId) {
+              const node = nodes.find((n) => n.id === row.routeNodeId);
+              if (node?.data.kind === "index") {
+                const days = node.data.retentionDays ?? 3;
+                return (
+                  <select
+                    className="sheet-select"
+                    value={days}
+                    onChange={(e) => {
+                      const d = Number(e.target.value);
+                      const patch: Partial<typeof node.data> = {
+                        retentionDays: d,
+                      };
+                      if (!node.data.labelManuallySet) {
+                        patch.label = `Standard Logs (${d}d)`;
+                      }
+                      updateNodeData(row.routeNodeId!, patch);
+                    }}
+                  >
+                    <option value={3}>3d</option>
+                    <option value={7}>7d</option>
+                    <option value={15}>15d</option>
+                    <option value={30}>30d</option>
+                  </select>
+                );
+              }
+            }
+            return null;
+          })();
+          return (
+            <div className="sheet-type-cell">
+              <TypeBadge displayType={row.displayType} />
+              {retentionWidget}
+            </div>
+          );
+        },
+        size: 160,
       }),
       helper.accessor("pctOfTotal", {
         size: 100,
@@ -105,65 +167,9 @@ export function CostSheet() {
       helper.display({
         id: "nameDescription",
         size: 320,
-        header: "Name / Description",
+        header: "Description",
         cell: (ctx) => {
           const row = ctx.row.original;
-          // Inline retention selectors stay rendered alongside the editable name
-          // so the combined column carries everything Name + Description did.
-          const retentionWidget = (() => {
-            if (row.lineKind === "flex_aggregate" && row.routeNodeId) {
-              const raw =
-                nodes.find((n) => n.id === row.routeNodeId)?.data
-                  .flexRetentionDays ?? 30;
-              const days = FLEX_RETENTION_DAY_OPTIONS.includes(raw)
-                ? raw
-                : nearestFlexRetentionDays(raw);
-              return (
-                <select
-                  className="sheet-select"
-                  value={days}
-                  onChange={(e) => {
-                    const d = Number(e.target.value);
-                    updateNodeData(row.routeNodeId!, {
-                      flexRetentionDays: d,
-                    });
-                  }}
-                >
-                  {FLEX_RETENTION_DAY_OPTIONS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}d
-                    </option>
-                  ))}
-                </select>
-              );
-            }
-            if (row.lineKind === "node" && row.routeNodeId) {
-              const node = nodes.find((n) => n.id === row.routeNodeId);
-              if (node?.data.kind === "index") {
-                const days = node.data.retentionDays ?? 3;
-                return (
-                  <select
-                    className="sheet-select"
-                    value={days}
-                    onChange={(e) => {
-                      const d = Number(e.target.value);
-                      updateNodeData(row.routeNodeId!, {
-                        retentionDays: d,
-                        label: `Standard Logs (${d}d)`,
-                      });
-                    }}
-                  >
-                    <option value={3}>3d</option>
-                    <option value={7}>7d</option>
-                    <option value={15}>15d</option>
-                    <option value={30}>30d</option>
-                  </select>
-                );
-              }
-            }
-            return null;
-          })();
-
           const nameDisplay =
             row.lineKind === "node" && row.routeNodeId ? (
               <input
@@ -174,6 +180,7 @@ export function CostSheet() {
                 onBlur={(e) =>
                   updateNodeData(row.routeNodeId!, {
                     label: e.target.value,
+                    labelManuallySet: true,
                   })
                 }
               />
@@ -195,7 +202,6 @@ export function CostSheet() {
               {subParts.length > 0 ? (
                 <span className="sheet-desc-sub">{subParts.join(" · ")}</span>
               ) : null}
-              {retentionWidget}
             </div>
           );
         },

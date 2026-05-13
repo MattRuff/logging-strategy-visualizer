@@ -42,6 +42,8 @@ export interface StrategyNodeData extends Record<string, unknown> {
   thirdPartyQty?: number;
   /** Third-party node: $ per unit (per GB or per million log lines). */
   thirdPartyUnitCost?: number;
+  /** True once the user has edited the label by hand — suppresses auto-relabel on retention changes. */
+  labelManuallySet?: boolean;
 }
 
 export type StrategyNode = Node<StrategyNodeData>;
