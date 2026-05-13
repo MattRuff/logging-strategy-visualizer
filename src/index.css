@@ -2051,3 +2051,16 @@ body {
   color: var(--dd-text-muted);
   margin: 0;
 }
+
+/* Move cost-sheet totals toward the middle so they're harder to miss. */
+.cost-sheet__header--centered {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.cost-sheet__totals--center {
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  gap: 24px;
+}

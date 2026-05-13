@@ -218,13 +218,13 @@ export function CostSheet() {
       }),
       helper.accessor("unitPrice", {
         size: 96,
-        header: "Unit $",
+        header: "Unit ($)",
         cell: (ctx) => {
           const row = ctx.row.original;
           if (row.pricingKey == null) {
             return (
               <span className="sheet-num">
-                {row.unitPrice != null ? row.unitPrice : "—"}
+                {row.unitPrice != null ? `$${row.unitPrice}` : "—"}
               </span>
             );
           }
@@ -246,26 +246,26 @@ export function CostSheet() {
       }),
       helper.accessor("monthly", {
         size: 104,
-        header: "Monthly",
+        header: "Monthly ($)",
         cell: (ctx) => (
           <span className="sheet-num">
             {ctx.row.original.monthly != null
-              ? ctx.row.original.monthly.toLocaleString(undefined, {
+              ? `$${ctx.row.original.monthly.toLocaleString(undefined, {
                   maximumFractionDigits: 2,
-                })
+                })}`
               : "—"}
           </span>
         ),
       }),
       helper.accessor("annual", {
         size: 104,
-        header: "Annual",
+        header: "Annual ($)",
         cell: (ctx) => (
           <span className="sheet-num">
             {ctx.row.original.annual != null
-              ? ctx.row.original.annual.toLocaleString(undefined, {
+              ? `$${ctx.row.original.annual.toLocaleString(undefined, {
                   maximumFractionDigits: 2,
-                })
+                })}`
               : "—"}
           </span>
         ),
@@ -333,12 +333,13 @@ export function CostSheet() {
 
   return (
     <section className="cost-sheet">
-      <div className="cost-sheet__header">
+      <div className="cost-sheet__header cost-sheet__header--centered">
         <h2>Cost sheet</h2>
-        <div className="cost-sheet__totals">
+        <div className="cost-sheet__totals cost-sheet__totals--center">
           <span>
             Monthly total:{" "}
             <strong>
+              $
               {totals.monthly.toLocaleString(undefined, {
                 maximumFractionDigits: 2,
               })}
@@ -347,6 +348,7 @@ export function CostSheet() {
           <span>
             Annual total:{" "}
             <strong>
+              $
               {totals.annual.toLocaleString(undefined, {
                 maximumFractionDigits: 2,
               })}
@@ -426,7 +428,7 @@ export function CostSheet() {
               const monthlyIdx = headerIds.indexOf("monthly");
               const annualIdx = headerIds.indexOf("annual");
               const fmt = (n: number) =>
-                n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
               let prevGroupId: string | undefined;
               const flushSubtotal = (gid: string) => {
                 const sub = groupSubtotals.get(gid);
