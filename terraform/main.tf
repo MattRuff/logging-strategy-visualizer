@@ -6,6 +6,7 @@ locals {
   lambda_functions = {
     saveWorkload    = { handler = "saveWorkload/index.handler", method = "PUT", route = "/api/workloads/{id}" }
     loadWorkload    = { handler = "loadWorkload/index.handler", method = "GET", route = "/api/workloads/{id}" }
+    deleteWorkload  = { handler = "deleteWorkload/index.handler", method = "DELETE", route = "/api/workloads/{id}" }
     listMyWorkloads = { handler = "listMyWorkloads/index.handler", method = "GET", route = "/api/workloads" }
     publish         = { handler = "publish/index.handler", method = "POST", route = "/api/workloads/{id}/publish" }
     listArchive     = { handler = "listArchive/index.handler", method = "GET", route = "/api/archive" }
