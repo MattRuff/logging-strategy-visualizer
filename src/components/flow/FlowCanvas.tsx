@@ -17,6 +17,7 @@ import type {
   StrategyNodeData,
 } from "@/model/types";
 import { useStrategyStore } from "@/state/strategyStore";
+import { setFlowInstance } from "@/lib/flowInstance";
 import { PctEdge } from "./PctEdge";
 import { StrategyNode as StrategyNodeView } from "./StrategyNode";
 import { GroupNode } from "./GroupNode";
@@ -203,6 +204,8 @@ function FlowInner() {
     [drawing, addGroupFromRect]
   );
 
+  useEffect(() => () => setFlowInstance(null), []);
+
   const drawingBox = useMemo(() => {
     if (!drawing) return null;
     const x = Math.min(drawing.startX, drawing.curX);
@@ -226,6 +229,7 @@ function FlowInner() {
         onConnect={onConnect}
         onInit={(i) => {
           rfRef.current = i;
+          setFlowInstance(i);
         }}
         onDrop={onDrop}
         onDragOver={(e) => {

@@ -21,7 +21,8 @@ export default function App() {
         <Route path="/pricing" element={<PricingRoute />} />
         <Route path="/hybrid" element={<HybridRoute />} />
         <Route path="/workloads" element={<MyWorkloads />} />
-        <Route path="/archive" element={<Archive />} />
+        <Route path="/templates" element={<Archive />} />
+        <Route path="/archive" element={<Navigate to="/templates" replace />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/auth/resend" element={<ResendVerification />} />

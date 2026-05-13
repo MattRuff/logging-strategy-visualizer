@@ -82,7 +82,7 @@ export function MyWorkloads() {
                               }
                             }}
                           >
-                            {publishingId === it.id ? "Publishing…" : "Publish to archive"}
+                            {publishingId === it.id ? "Publishing…" : "Publish as template"}
                           </button>
                         </td>
                       </tr>

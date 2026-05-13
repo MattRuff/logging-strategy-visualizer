@@ -17,7 +17,7 @@ export function SubPageHeader({ title }: { title: string }) {
       <div className="toolbar__actions">
         <Link to="/visualizer" className="toolbar__btn toolbar__btn--ghost">Visualizer</Link>
         <Link to="/workloads" className="toolbar__btn toolbar__btn--ghost">My scenarios</Link>
-        <Link to="/archive" className="toolbar__btn toolbar__btn--ghost">Archive</Link>
+        <Link to="/templates" className="toolbar__btn toolbar__btn--ghost">Templates</Link>
         {accessToken ? (
           <>
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{email}</span>

@@ -21,6 +21,8 @@ interface ServerPayload {
   pricingOverrides: Partial<Record<PricingKey, number>>;
   flexComputeTier: ReturnType<typeof pickFlexComputeTier>;
   layoutOrientation: LayoutOrientation;
+  /** When this scenario was created by cloning a published template, the source template id. */
+  templateId?: string;
 }
 
 export function hydrateStoreFromPayload(payload: ServerPayload): void {
@@ -55,6 +57,7 @@ export function hydrateStoreFromPayload(payload: ServerPayload): void {
     pricingOverrides: payload.pricingOverrides,
     flexComputeTier,
     layoutOrientation: payload.layoutOrientation,
+    templateId: payload.templateId ?? null,
     nodeVolumes,
     sheetLineItems,
     sheetConflicts: [],

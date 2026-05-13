@@ -1250,6 +1250,13 @@ body {
   gap: 8px;
 }
 
+.sheet-type-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
 .sheet-name {
   font-weight: 600;
   color: var(--dd-text);

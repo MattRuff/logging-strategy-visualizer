@@ -13,7 +13,10 @@ export interface ArchiveSummary {
   ownerEmail: string | null;
   publishedAt: string;
   updatedAt: string;
+  isOfficial?: boolean;
 }
+
+export type TemplateSummary = ArchiveSummary;
 
 export interface WorkloadDetail {
   id: string;
@@ -90,5 +93,20 @@ export const workloadApi = {
   },
   listArchive(accessToken: string) {
     return request<{ workloads: ArchiveSummary[] }>(accessToken, "/archive");
+  },
+  listTemplates(accessToken: string) {
+    return request<{ workloads: TemplateSummary[] }>(accessToken, "/archive");
+  },
+  listAdmins(accessToken: string) {
+    return request<{ admins: string[]; isCallerAdmin: boolean }>(
+      accessToken,
+      "/admins"
+    );
+  },
+  addAdmin(accessToken: string, email: string) {
+    return request<{ admins: string[] }>(accessToken, "/admins", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
   },
 };

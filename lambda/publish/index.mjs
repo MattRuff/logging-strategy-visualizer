@@ -7,6 +7,7 @@ import { ddb, TABLE, userPk, wlSk, ARCHIVE_PK } from "../shared/ddb.mjs";
 import { getCallerSub, getCallerEmail } from "../shared/auth.mjs";
 import { ok, notFound, forbidden, badRequest, serverError } from "../shared/http.mjs";
 import { makeLogger } from "../shared/log.mjs";
+import { isAdminEmail } from "../shared/admins.mjs";
 
 export const handler = async (event, context) => {
   const log = makeLogger(event, context);
@@ -54,6 +55,7 @@ export const handler = async (event, context) => {
         payload: own.Item.payload,
         ownerSub: sub,
         ownerEmail: email,
+        isOfficial: await isAdminEmail(email),
         publishedAt: existingArchive.Item?.publishedAt ?? now,
         updatedAt: now,
       },

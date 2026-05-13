@@ -38,7 +38,10 @@ export function InspectorPanel() {
             <input
               value={node.data.label}
               onChange={(e) =>
-                updateNodeData(node.id, { label: e.target.value })
+                updateNodeData(node.id, {
+                  label: e.target.value,
+                  labelManuallySet: true,
+                })
               }
             />
           </label>
@@ -51,7 +54,9 @@ export function InspectorPanel() {
                   onChange={(e) =>
                     updateNodeData(node.id, {
                       retentionDays: Number(e.target.value),
-                      label: `Indexed ${e.target.value}d`,
+                      ...(node.data.labelManuallySet
+                        ? {}
+                        : { label: `Indexed ${e.target.value}d` }),
                     })
                   }
                 >
