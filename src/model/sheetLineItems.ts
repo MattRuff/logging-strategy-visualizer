@@ -243,7 +243,16 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     if (kind === "ingest") {
       const q = Math.round(effMLines * 1000) / 1000;
       const unit = resolvePrice("log_ingest_per_million", ov);
-      const monthly = Math.round(q * unit * 100) / 100;
+      // If every downstream edge from this ingest goes to a Standard (index) node,
+      // ingest cost rolls into Standard pricing — show $0 to avoid double-counting.
+      const outs = edges.filter((e) => e.source === nodeId);
+      const totalOut = outs.reduce((s, e) => s + (e.data?.pct ?? 0), 0);
+      const standardOut = outs.reduce((s, e) => {
+        const t = nodeById.get(e.target);
+        return t?.data.kind === "index" ? s + (e.data?.pct ?? 0) : s;
+      }, 0);
+      const allStandard = totalOut > 0 && Math.abs(standardOut - totalOut) < 0.001;
+      const monthly = allStandard ? 0 : Math.round(q * unit * 100) / 100;
       rows.push({
         ...base,
         nodeLabel: node.data.label,
@@ -251,10 +260,12 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         skuKey: "log_ingestion",
         description: "Log ingestion",
         quantityPerMonth: q,
-        unitPrice: unit,
+        unitPrice: allStandard ? 0 : unit,
         monthly,
         annual: annual(monthly),
-        millionLinesNote: "Million log lines, per month",
+        millionLinesNote: allStandard
+          ? "Bundled into Standard pricing"
+          : "Million log lines, per month",
         pricingKey: "log_ingest_per_million",
       });
       continue;
