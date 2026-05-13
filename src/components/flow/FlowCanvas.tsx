@@ -42,6 +42,7 @@ function FlowInner() {
   const runAutoLayout = useStrategyStore((s) => s.autoLayout);
   const copySelection = useStrategyStore((s) => s.copySelection);
   const pasteClipboard = useStrategyStore((s) => s.pasteClipboard);
+  const undo = useStrategyStore((s) => s.undo);
   const [minimapOpen, setMinimapOpen] = useState(true);
 
   // Group draw mode — store-managed so the Palette button can toggle it too.
@@ -129,11 +130,14 @@ function FlowInner() {
       } else if (key === "v") {
         e.preventDefault();
         pasteClipboard();
+      } else if (key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [copySelection, pasteClipboard]);
+  }, [copySelection, pasteClipboard, undo]);
 
   // ESC cancels group mode.
   useEffect(() => {
