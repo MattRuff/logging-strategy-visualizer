@@ -9,7 +9,7 @@ export function AuthCallback() {
 
   useEffect(() => {
     handleCallback()
-      .then(() => navigate("/visualizer", { replace: true }))
+      .then(() => navigate("/", { replace: true }))
       .catch((err) => {
         const message = err instanceof Error ? err.message : String(err);
         console.error("auth callback failed", err);
