@@ -189,7 +189,13 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
 
     if (kind === "pipelines") {
       const effTbDay = tbPerMonthToTbPerDay(effTbMo);
-      const ops = Math.max(1, Math.ceil(effTbDay));
+      const guidanceOps = Math.max(1, Math.ceil(effTbDay));
+      // OP vCPU is sold in whole units; honor an explicit override (also rounded up).
+      const override = node.data.opUnitsOverride;
+      const ops =
+        override != null && Number.isFinite(override)
+          ? Math.max(1, Math.ceil(override))
+          : guidanceOps;
       const opRate = resolvePrice("op_monthly_per_op", ov);
       const monthly = ops * opRate;
       rows.push({
@@ -198,11 +204,15 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         displayType: "OP",
         skuKey: "observability_pipelines_plus",
         description: "Observability Pipelines",
-        quantityPerMonth: Math.round(effTbMo * 1000) / 1000,
+        quantityPerMonth: ops,
         unitPrice: opRate,
         monthly,
         annual: annual(monthly),
-        millionLinesNote: "TB/mo",
+        millionLinesNote:
+          override != null
+            ? `vCPU (override; guidance ${guidanceOps})`
+            : "vCPU (guidance from TB/day)",
+        notes: node.data.notes,
         pricingKey: "op_monthly_per_op",
       });
       continue;
