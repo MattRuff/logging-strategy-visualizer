@@ -7,11 +7,22 @@ import {
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useStrategyStore } from "@/state/strategyStore";
 import { useAuth } from "@/auth/AuthProvider";
-import { workloadApi, type WorkloadSummary } from "@/lib/workloadApi";
+import { workloadApi, type TemplateSummary, type WorkloadSummary } from "@/lib/workloadApi";
+import { hydrateStoreFromPayload } from "@/lib/hydrateStore";
 
 async function exportXlsx() {
   const { exportStrategyXlsx } = await import("@/lib/xlsxSync");
   await exportStrategyXlsx(useStrategyStore.getState(), "logging-strategy.xlsx");
+}
+
+async function exportPng() {
+  const { exportFlowPng } = await import("@/lib/exportImage");
+  await exportFlowPng();
+}
+
+async function exportPdf() {
+  const { exportFlowPdf } = await import("@/lib/exportImage");
+  await exportFlowPdf();
 }
 
 async function importXlsx(file: File) {
@@ -142,6 +153,8 @@ export function ExpToolbar({
   const layoutOrientation = useStrategyStore((s) => s.layoutOrientation);
   const setLayoutOrientation = useStrategyStore((s) => s.setLayoutOrientation);
   const resetPricingDefaults = useStrategyStore((s) => s.resetPricingDefaults);
+  const currentTemplateId = useStrategyStore((s) => s.templateId);
+  const setTemplateId = useStrategyStore((s) => s.setTemplateId);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [nameDraft, setNameDraft] = useState(workloadName);
@@ -150,6 +163,9 @@ export function ExpToolbar({
   const [scenarios, setScenarios] = useState<WorkloadSummary[] | null>(null);
   const [scenariosError, setScenariosError] = useState<string | null>(null);
   const [publishMessage, setPublishMessage] = useState<string | null>(null);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [templates, setTemplates] = useState<TemplateSummary[] | null>(null);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
 
   // Lazy-load scenario list when File menu first becomes useful.
   const loadScenarios = () => {
@@ -167,6 +183,64 @@ export function ExpToolbar({
     onWorkloadNameChange("Untitled scenario");
     navigate(`${location.pathname}?id=${encodeURIComponent(newId)}`);
     close();
+  };
+
+  const openTemplatePicker = (close: () => void) => {
+    if (!accessToken) {
+      signIn();
+      return;
+    }
+    close();
+    setTemplatesError(null);
+    setTemplatePickerOpen(true);
+    workloadApi
+      .listTemplates(accessToken)
+      .then((r) =>
+        setTemplates(
+          [...r.workloads].sort((a, b) => {
+            const ao = a.isOfficial ? 1 : 0;
+            const bo = b.isOfficial ? 1 : 0;
+            if (ao !== bo) return bo - ao;
+            return b.publishedAt.localeCompare(a.publishedAt);
+          })
+        )
+      )
+      .catch((err) =>
+        setTemplatesError(err instanceof Error ? err.message : String(err))
+      );
+  };
+
+  const handlePickTemplate = async (t: TemplateSummary) => {
+    if (!accessToken) return;
+    try {
+      const detail = await workloadApi.load(accessToken, t.id);
+      const newId = newWorkloadId();
+      const basePayload = detail.payload as Parameters<typeof hydrateStoreFromPayload>[0];
+      const payloadWithSource = { ...basePayload, templateId: t.id };
+      hydrateStoreFromPayload(payloadWithSource);
+      setTemplateId(t.id);
+      const newName = `${t.name} (copy)`;
+      await workloadApi.save(accessToken, newId, newName, payloadWithSource);
+      onWorkloadNameChange(newName);
+      navigate(`${location.pathname}?id=${encodeURIComponent(newId)}`);
+      setTemplatePickerOpen(false);
+    } catch (err) {
+      setTemplatesError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleResetToTemplate = async (close: () => void) => {
+    close();
+    if (!accessToken || !currentTemplateId) return;
+    if (!window.confirm("Reset this scenario back to its source template? Unsaved local edits will be lost.")) return;
+    try {
+      const detail = await workloadApi.load(accessToken, currentTemplateId);
+      const basePayload = detail.payload as Parameters<typeof hydrateStoreFromPayload>[0];
+      hydrateStoreFromPayload({ ...basePayload, templateId: currentTemplateId });
+      setTemplateId(currentTemplateId);
+    } catch (err) {
+      window.alert(`Reset failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
   const handleSaveAs = async (close: () => void) => {
@@ -204,7 +278,7 @@ export function ExpToolbar({
     setPublishMessage(null);
     try {
       await workloadApi.publish(accessToken, workloadId);
-      setPublishMessage("Published to archive ✓");
+      setPublishMessage("Published as template ✓");
       window.setTimeout(() => setPublishMessage(null), 2500);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -273,6 +347,15 @@ export function ExpToolbar({
                 <MenuItem onClick={() => handleNew(close)} disabled={!accessToken}>
                   New scenario
                 </MenuItem>
+                <MenuItem onClick={() => openTemplatePicker(close)} disabled={!accessToken}>
+                  New scenario from template…
+                </MenuItem>
+                <MenuItem
+                  onClick={() => handleResetToTemplate(close)}
+                  disabled={!accessToken || readOnly || !currentTemplateId}
+                >
+                  Reset to template
+                </MenuItem>
                 <MenuItem
                   onClick={() => { onSave(); close(); }}
                   disabled={!accessToken || readOnly}
@@ -284,7 +367,7 @@ export function ExpToolbar({
                   Save as…
                 </MenuItem>
                 <MenuItem onClick={() => handlePublish(close)} disabled={!accessToken || readOnly}>
-                  Publish to archive
+                  Publish as template
                 </MenuItem>
                 <MenuDivider />
                 <MenuItem
@@ -299,10 +382,10 @@ export function ExpToolbar({
                 <MenuItem
                   onClick={() => {
                     close();
-                    navigate("/archive");
+                    navigate("/templates");
                   }}
                 >
-                  Browse archive
+                  Browse templates
                 </MenuItem>
                 <MenuDivider />
                 <MenuItem
@@ -320,6 +403,22 @@ export function ExpToolbar({
                   }}
                 >
                   Export .xlsx
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    void exportPng();
+                    close();
+                  }}
+                >
+                  Export .png
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    void exportPdf();
+                    close();
+                  }}
+                >
+                  Export .pdf
                 </MenuItem>
                 <MenuDivider />
                 <div className="menu-popover__section-title">Open scenario</div>
@@ -482,6 +581,118 @@ export function ExpToolbar({
           </button>
         )}
       </div>
+
+      {templatePickerOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Pick a template"
+          onClick={() => setTemplatePickerOpen(false)}
+          style={modalBackdrop}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={modalCard}>
+            <div style={modalHeader}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Pick a template</h3>
+              <button
+                type="button"
+                onClick={() => setTemplatePickerOpen(false)}
+                style={modalCloseBtn}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--dd-text-muted)" }}>
+              Starts a new scenario in your account from the selected template.
+              Official templates from admins are pinned to the top.
+            </p>
+            {templatesError && (
+              <div style={{ color: "crimson", fontSize: 13, marginBottom: 8 }}>{templatesError}</div>
+            )}
+            {!templates && !templatesError && (
+              <div style={{ fontSize: 13, color: "var(--dd-text-muted)" }}>Loading…</div>
+            )}
+            {templates && templates.length === 0 && (
+              <div style={{ fontSize: 13, color: "var(--dd-text-muted)" }}>No templates published yet.</div>
+            )}
+            {templates && templates.length > 0 && (
+              <div style={{ maxHeight: 360, overflowY: "auto", border: "1px solid var(--dd-border)", borderRadius: "var(--dd-radius)" }}>
+                {templates.map((t) => (
+                  <button
+                    type="button"
+                    key={t.id}
+                    onClick={() => void handlePickTemplate(t)}
+                    style={templateRow}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontWeight: 600, color: "var(--dd-text)" }}>{t.name}</span>
+                      {t.isOfficial && <span style={officialBadge}>Official</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--dd-text-muted)" }}>
+                      {t.ownerEmail ?? "—"} · {new Date(t.publishedAt).toLocaleDateString()}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }
+
+const modalBackdrop: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(15,17,21,0.45)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 1000,
+};
+const modalCard: React.CSSProperties = {
+  background: "var(--dd-surface)",
+  borderRadius: "var(--dd-radius-lg)",
+  padding: 20,
+  width: "min(520px, 92vw)",
+  boxShadow: "var(--dd-shadow)",
+  border: "1px solid var(--dd-border)",
+};
+const modalHeader: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: 8,
+};
+const modalCloseBtn: React.CSSProperties = {
+  background: "transparent",
+  border: "none",
+  fontSize: 16,
+  cursor: "pointer",
+  color: "var(--dd-text-muted)",
+};
+const templateRow: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  width: "100%",
+  textAlign: "left",
+  padding: "10px 12px",
+  background: "transparent",
+  border: "none",
+  borderBottom: "1px solid var(--dd-border)",
+  cursor: "pointer",
+  gap: 2,
+};
+const officialBadge: React.CSSProperties = {
+  display: "inline-block",
+  padding: "1px 6px",
+  fontSize: 9,
+  fontWeight: 700,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+  background: "var(--dd-purple)",
+  color: "#fff",
+  borderRadius: 999,
+};
