@@ -372,7 +372,10 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
         }
       }
       const headroom = Math.max(0, 100 - siblingSum);
-      const clamped = Math.max(0, Math.min(headroom, Math.round(pct)));
+      // Keep 3 decimals so reverse-editing the M lines field on an edge doesn't
+      // snap the result back to an integer-pct equivalent volume.
+      const rounded = Math.round(pct * 1000) / 1000;
+      const clamped = Math.max(0, Math.min(headroom, rounded));
       set((s) => ({
         edges: s.edges.map((e) =>
           e.id === edgeId
