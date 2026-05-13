@@ -359,23 +359,12 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
         now - lastEdgePctEdit.at < EDGE_PCT_COALESCE_MS;
       if (!recent) pushHistoryInternal();
       lastEdgePctEdit = { edgeId, at: now };
-      const state = get();
-      const target = state.edges.find((e) => e.id === edgeId);
-      // Cap the new value so sibling edges out of the same parent never sum >100.
-      // Decimals are stripped here so the diagram stays integer-only.
-      let siblingSum = 0;
-      if (target) {
-        for (const e of state.edges) {
-          if (e.id !== edgeId && e.source === target.source) {
-            siblingSum += e.data?.pct ?? 0;
-          }
-        }
-      }
-      const headroom = Math.max(0, 100 - siblingSum);
-      // Keep 3 decimals so reverse-editing the M lines field on an edge doesn't
-      // snap the result back to an integer-pct equivalent volume.
+      // A single edge represents what fraction of the parent's volume travels
+      // through that link — capped at 100%. Sibling edges out of the same node
+      // are independent (a node can fan a stream out to two destinations at
+      // 100% each), so we do NOT enforce a sum cap across siblings.
       const rounded = Math.round(pct * 1000) / 1000;
-      const clamped = Math.max(0, Math.min(headroom, rounded));
+      const clamped = Math.max(0, Math.min(100, rounded));
       set((s) => ({
         edges: s.edges.map((e) =>
           e.id === edgeId
