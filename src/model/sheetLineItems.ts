@@ -241,7 +241,8 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     }
 
     if (kind === "ingest") {
-      const q = Math.round(effMLines * 1000) / 1000;
+      const qDerived = Math.round(effMLines * 1000) / 1000;
+      const q = node.data.qtyOverride ?? qDerived;
       const unit = resolvePrice("log_ingest_per_million", ov);
       // If every downstream edge from this ingest goes to a Standard (index) node,
       // ingest cost rolls into Standard pricing — show $0 to avoid double-counting.
@@ -274,7 +275,8 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     if (kind === "index") {
       const days = node.data.retentionDays ?? 3;
       const pk = indexedRetentionToKey(days);
-      const q = Math.round(effMLines * 1000) / 1000;
+      const qDerived = Math.round(effMLines * 1000) / 1000;
+      const q = node.data.qtyOverride ?? qDerived;
       const unit = resolvePrice(pk, ov);
       const monthly = Math.round(q * unit * 100) / 100;
       rows.push({

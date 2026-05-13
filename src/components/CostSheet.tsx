@@ -41,6 +41,9 @@ export function CostSheet() {
   const sheetLineItems = useStrategyStore((s) => s.sheetLineItems);
   const nodes = useStrategyStore((s) => s.nodes);
   const updateNodeData = useStrategyStore((s) => s.updateNodeData);
+  const setQtyOverride = useStrategyStore((s) => s.setQtyOverride);
+  const setOpUnitsOverride = useStrategyStore((s) => s.setOpUnitsOverride);
+  const updateNodeNotes = useStrategyStore((s) => s.updateNodeNotes);
   const setPricingOverride = useStrategyStore((s) => s.setPricingOverride);
   const applyRoutePctFromSheet = useStrategyStore(
     (s) => s.applyRoutePctFromSheet
@@ -193,15 +196,39 @@ export function CostSheet() {
       helper.accessor("quantityPerMonth", {
         size: 110,
         header: "Qty / mo",
-        cell: (ctx) => (
-          <span className="sheet-num sheet-num--readonly">
-            {ctx.row.original.quantityPerMonth != null
-              ? ctx.row.original.quantityPerMonth.toLocaleString(undefined, {
-                  maximumFractionDigits: 4,
-                })
-              : "—"}
-          </span>
-        ),
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          const q = row.quantityPerMonth;
+          if (q == null || !row.routeNodeId) {
+            return (
+              <span className="sheet-num sheet-num--readonly">
+                {q != null
+                  ? q.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                  : "—"}
+              </span>
+            );
+          }
+          const isOp = row.displayType === "OP";
+          return (
+            <input
+              className="sheet-input sheet-input--blue"
+              type="number"
+              step={1}
+              min={0}
+              defaultValue={Math.round(q)}
+              key={`${row.id}-qty-${q}`}
+              onBlur={(e) => {
+                const n = Math.round(Number(e.target.value));
+                if (!Number.isFinite(n)) return;
+                if (isOp) {
+                  setOpUnitsOverride(row.routeNodeId!, n);
+                } else {
+                  setQtyOverride(row.routeNodeId!, n);
+                }
+              }}
+            />
+          );
+        },
       }),
       helper.accessor("unitPrice", {
         size: 96,
@@ -269,7 +296,10 @@ export function CostSheet() {
       applyRoutePctFromSheet,
       nodes,
       setPricingOverride,
+      setQtyOverride,
+      setOpUnitsOverride,
       updateNodeData,
+      updateNodeNotes,
     ]
   );
 
