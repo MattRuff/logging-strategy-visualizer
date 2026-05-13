@@ -15,14 +15,14 @@ async function exportXlsx() {
   await exportStrategyXlsx(useStrategyStore.getState(), "logging-strategy.xlsx");
 }
 
-async function exportPng() {
+async function exportPng(name: string) {
   const { exportFlowPng } = await import("@/lib/exportImage");
-  await exportFlowPng();
+  await exportFlowPng(name);
 }
 
-async function exportPdf() {
+async function exportPdf(name: string) {
   const { exportFlowPdf } = await import("@/lib/exportImage");
-  await exportFlowPdf();
+  await exportFlowPdf(name);
 }
 
 async function importXlsx(file: File) {
@@ -406,7 +406,7 @@ export function ExpToolbar({
                 </MenuItem>
                 <MenuItem
                   onClick={() => {
-                    void exportPng();
+                    void exportPng(workloadName);
                     close();
                   }}
                 >
@@ -414,7 +414,7 @@ export function ExpToolbar({
                 </MenuItem>
                 <MenuItem
                   onClick={() => {
-                    void exportPdf();
+                    void exportPdf(workloadName);
                     close();
                   }}
                 >
