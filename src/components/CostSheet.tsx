@@ -182,11 +182,17 @@ export function CostSheet() {
               </span>
             );
 
+          const subParts = [
+            row.lineKind !== "node" || row.nodeLabel !== row.description
+              ? row.description
+              : "",
+            row.millionLinesNote,
+          ].filter(Boolean);
           return (
             <div className="sheet-desc-row">
               {nameDisplay}
-              {row.lineKind !== "node" || row.nodeLabel !== row.description ? (
-                <span className="sheet-desc-sub">{row.description}</span>
+              {subParts.length > 0 ? (
+                <span className="sheet-desc-sub">{subParts.join(" · ")}</span>
               ) : null}
               {retentionWidget}
             </div>
@@ -284,12 +290,29 @@ export function CostSheet() {
           </span>
         ),
       }),
-      helper.accessor("millionLinesNote", {
-        size: 140,
+      helper.accessor("notes", {
+        size: 180,
         header: "Notes",
-        cell: (ctx) => (
-          <span className="sheet-note">{ctx.row.original.millionLinesNote}</span>
-        ),
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          if (!row.routeNodeId) {
+            return (
+              <span className="sheet-note">{row.notes ?? ""}</span>
+            );
+          }
+          return (
+            <input
+              className="sheet-input sheet-input--blue"
+              type="text"
+              placeholder="Add a note…"
+              defaultValue={row.notes ?? ""}
+              key={`${row.id}-note-${row.notes ?? ""}`}
+              onBlur={(e) => {
+                updateNodeNotes(row.routeNodeId!, e.target.value);
+              }}
+            />
+          );
+        },
       }),
     ],
     [

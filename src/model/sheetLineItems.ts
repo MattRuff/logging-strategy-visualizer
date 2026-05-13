@@ -234,6 +234,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         unitPrice: unit,
         monthly,
         annual: annual(monthly),
+        notes: node.data.notes,
         millionLinesNote: "GB/mo · tier $/GB",
         pricingKey: tier.key,
       });
@@ -264,6 +265,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         unitPrice: allStandard ? 0 : unit,
         monthly,
         annual: annual(monthly),
+        notes: node.data.notes,
         millionLinesNote: allStandard
           ? "Bundled into Standard pricing"
           : "Million log lines, per month",
@@ -289,6 +291,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         unitPrice: unit,
         monthly,
         annual: annual(monthly),
+        notes: node.data.notes,
         millionLinesNote: "Million log lines, per month",
         pricingKey: pk,
       });
@@ -308,6 +311,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         monthly: 0,
         annual: 0,
         millionLinesNote: "TB/mo",
+        notes: node.data.notes,
       });
       continue;
     }
@@ -327,6 +331,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         unitPrice: unit,
         monthly,
         annual: annual(monthly),
+        notes: node.data.notes,
         millionLinesNote: "GB scanned/mo",
         pricingKey: "archive_search_per_gb",
       });
@@ -351,6 +356,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         unitPrice: unit,
         monthly,
         annual: annual(monthly),
+        notes: node.data.notes,
         millionLinesNote: "M lines/mo · $/M-30d",
         pricingKey: "flex_starter_per_million_30d",
       });
