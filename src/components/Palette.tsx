@@ -33,7 +33,6 @@ const SECTIONS: Section[] = [
         title: "OP",
         hint: "Observability Pipelines Plus (OP) pricing",
       },
-      { kind: "siem", title: "SIEM", hint: "Pre-ingest SIEM (volume-tier $/GB)" },
     ],
   },
   {

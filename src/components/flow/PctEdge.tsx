@@ -23,8 +23,12 @@ function unitForTargetKind(kind: NodeKind | undefined): {
 }
 
 function formatVolume(value: number, _unit: "mlines" | "tb"): string {
-  if (!Number.isFinite(value)) return "0";
-  // Integer-only: drop fractional precision on display so the diagram stays clean.
+  if (!Number.isFinite(value) || value === 0) return "0";
+  // Preserve precision for small fractions so that e.g. 10% of a tiny upstream
+  // volume doesn't collapse to "0" — the diagram stays clean for large numbers
+  // (rounded) but stays truthful for small ones.
+  if (value < 1) return value.toFixed(2).replace(/\.?0+$/, "");
+  if (value < 10) return value.toFixed(1).replace(/\.0$/, "");
   return String(Math.round(value));
 }
 
@@ -145,7 +149,7 @@ function PctInput({
         type="number"
         min={0}
         max={100}
-        step={1}
+        step="any"
         title="% of logs entering the downstream node via this link"
         size={sizeFor(value)}
         value={value}
