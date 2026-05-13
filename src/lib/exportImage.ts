@@ -65,17 +65,66 @@ async function captureFlow(): Promise<string | null> {
 async function captureCostSheet(): Promise<string | null> {
   const el = document.querySelector(".cost-sheet") as HTMLElement | null;
   if (!el) return null;
-  // Capture the element at its scroll size so the whole table is included.
-  const width = Math.max(el.scrollWidth, el.clientWidth);
-  const height = Math.max(el.scrollHeight, el.clientHeight);
-  return toPng(el, {
-    backgroundColor: BG,
-    pixelRatio: PIXEL_RATIO,
-    cacheBust: true,
-    width,
-    height,
-    style: { width: `${width}px`, height: `${height}px` },
-  });
+
+  // The cost-sheet is a flex column with height:100% and an inner
+  // .sheet-table-wrap that scrolls. We need to neutralize those constraints
+  // during capture so the whole table is laid out (otherwise rows/columns
+  // scrolled out of view are clipped).
+  const wrap = el.querySelector(".sheet-table-wrap") as HTMLElement | null;
+  const thead = el.querySelector(".sheet-table thead") as HTMLElement | null;
+
+  const elPrev = {
+    height: el.style.height,
+    maxHeight: el.style.maxHeight,
+    overflow: el.style.overflow,
+  };
+  const wrapPrev = wrap
+    ? { overflow: wrap.style.overflow, maxHeight: wrap.style.maxHeight, flex: wrap.style.flex }
+    : null;
+  const theadPrev = thead
+    ? { position: thead.style.position, top: thead.style.top }
+    : null;
+
+  el.style.height = "auto";
+  el.style.maxHeight = "none";
+  el.style.overflow = "visible";
+  if (wrap) {
+    wrap.style.overflow = "visible";
+    wrap.style.maxHeight = "none";
+    wrap.style.flex = "0 0 auto";
+  }
+  if (thead) {
+    // Sticky headers can ghost during capture; pin them as static.
+    thead.style.position = "static";
+    thead.style.top = "auto";
+  }
+
+  try {
+    await nextFrame();
+    const width = Math.max(el.scrollWidth, el.clientWidth, el.offsetWidth);
+    const height = Math.max(el.scrollHeight, el.clientHeight, el.offsetHeight);
+    return await toPng(el, {
+      backgroundColor: BG,
+      pixelRatio: PIXEL_RATIO,
+      cacheBust: true,
+      width,
+      height,
+      style: { width: `${width}px`, height: `${height}px` },
+    });
+  } finally {
+    el.style.height = elPrev.height;
+    el.style.maxHeight = elPrev.maxHeight;
+    el.style.overflow = elPrev.overflow;
+    if (wrap && wrapPrev) {
+      wrap.style.overflow = wrapPrev.overflow;
+      wrap.style.maxHeight = wrapPrev.maxHeight;
+      wrap.style.flex = wrapPrev.flex;
+    }
+    if (thead && theadPrev) {
+      thead.style.position = theadPrev.position;
+      thead.style.top = theadPrev.top;
+    }
+  }
 }
 
 async function composeStack(dataUrls: string[]): Promise<string> {
@@ -137,11 +186,38 @@ export async function exportFlowPdf(scenarioName: string) {
   const margin = 24;
   const availW = pageW - margin * 2;
   const availH = pageH - margin * 2;
-  const scale = Math.min(availW / img.width, availH / img.height);
-  const w = img.width * scale;
-  const h = img.height * scale;
-  const x = (pageW - w) / 2;
-  const y = (pageH - h) / 2;
-  pdf.addImage(url, "PNG", x, y, w, h);
+
+  // Fit width to the page; if the resulting height exceeds one page, paginate
+  // vertically rather than shrinking everything down to one tiny page.
+  const scale = availW / img.width;
+  const drawW = availW;
+  const drawH = img.height * scale;
+
+  if (drawH <= availH) {
+    const y = (pageH - drawH) / 2;
+    pdf.addImage(url, "PNG", margin, y, drawW, drawH);
+  } else {
+    // Slice the source image into page-sized vertical strips.
+    const sliceSrcH = Math.floor(availH / scale);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("2D canvas not available");
+    let srcY = 0;
+    let first = true;
+    while (srcY < img.height) {
+      const h = Math.min(sliceSrcH, img.height - srcY);
+      canvas.width = img.width;
+      canvas.height = h;
+      ctx.fillStyle = BG;
+      ctx.fillRect(0, 0, img.width, h);
+      ctx.drawImage(img, 0, srcY, img.width, h, 0, 0, img.width, h);
+      const sliceUrl = canvas.toDataURL("image/png");
+      if (!first) pdf.addPage();
+      pdf.addImage(sliceUrl, "PNG", margin, margin, drawW, h * scale);
+      first = false;
+      srcY += h;
+    }
+  }
+
   pdf.save(safeFilename(scenarioName, "pdf"));
 }
