@@ -41,24 +41,17 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    id: "ingest",
-    title: "Ingest",
+    id: "ingest-hot",
+    title: "Ingest & Hot",
     accent: "#3399ff",
     items: [
       { kind: "ingest", title: "Ingest", hint: "Datadog ingest hop" },
-    ],
-  },
-  {
-    id: "hot",
-    title: "Hot tier",
-    accent: "#2563eb",
-    items: [
       { kind: "index", title: "Index (hot)", hint: "Indexed / standard tier" },
     ],
   },
   {
-    id: "flex",
-    title: "Flex",
+    id: "retention",
+    title: "Retention",
     accent: "#00b4a1",
     items: [
       { kind: "flex", title: "Flex", hint: "Flex storage" },
@@ -67,13 +60,6 @@ const SECTIONS: Section[] = [
         title: "Flex Starter",
         hint: "Flex Logs Starter — pay-per-event, no compute",
       },
-    ],
-  },
-  {
-    id: "archive",
-    title: "Archive",
-    accent: "#e17840",
-    items: [
       { kind: "archive", title: "Archive", hint: "S3 / long-term" },
       {
         kind: "archive_search",

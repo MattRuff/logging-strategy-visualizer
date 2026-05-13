@@ -14,8 +14,14 @@ export function VisualizerPage() {
             <FlowCanvas />
           </div>
           <aside className="app__aside">
-            <Palette />
+            <div className="app__aside-hint">
+              Drag any node onto the canvas to add it, then connect nodes
+              by dragging from one handle to another.
+            </div>
             <InspectorPanel />
+            <div className="app__aside-scroll">
+              <Palette />
+            </div>
           </aside>
         </main>
       </div>
