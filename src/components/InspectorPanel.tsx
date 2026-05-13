@@ -12,8 +12,19 @@ export function InspectorPanel() {
   const selectedId = useStrategyStore((s) => s.selectedNodeId);
   const nodes = useStrategyStore((s) => s.nodes);
   const updateNodeData = useStrategyStore((s) => s.updateNodeData);
+  const setOpUnitsOverride = useStrategyStore((s) => s.setOpUnitsOverride);
+  const pipelinesTbMo = useStrategyStore((s) =>
+    selectedId ? (s.nodeVolumes.get(selectedId)?.tbPerMonth ?? 0) : 0
+  );
 
   const node = nodes.find((n) => n.id === selectedId);
+  const opGuidance = Math.max(0, Math.ceil(pipelinesTbMo / 30));
+  const opOverride = node?.data.kind === "pipelines"
+    ? node.data.opUnitsOverride
+    : undefined;
+  const opEffective = opOverride != null && Number.isFinite(opOverride)
+    ? Math.max(0, Math.ceil(opOverride))
+    : opGuidance;
 
   return (
     <div className="inspector">
@@ -60,6 +71,51 @@ export function InspectorPanel() {
                 />
               </label>
             </>
+          ) : null}
+          {node.data.kind === "pipelines" ? (
+            <label className="inspector__field">
+              vCPUs (1 vCPU ≈ 30 TB/mo)
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={opEffective}
+                key={`${node.id}-op-${opOverride ?? "auto"}-${opGuidance}`}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === "") {
+                    setOpUnitsOverride(node.id, undefined);
+                    return;
+                  }
+                  const n = Number(raw);
+                  if (Number.isFinite(n)) setOpUnitsOverride(node.id, n);
+                }}
+              />
+              <span style={{ fontSize: 11, color: "var(--dd-text-muted)", fontWeight: 400 }}>
+                {opOverride != null
+                  ? `Overridden — auto would be ${opGuidance} (${pipelinesTbMo.toFixed(1)} TB/mo)`
+                  : `Auto from ${pipelinesTbMo.toFixed(1)} TB/mo`}
+              </span>
+              {opOverride != null ? (
+                <button
+                  type="button"
+                  onClick={() => setOpUnitsOverride(node.id, undefined)}
+                  style={{
+                    alignSelf: "flex-start",
+                    marginTop: 4,
+                    fontSize: 11,
+                    padding: "3px 8px",
+                    border: "1px solid var(--dd-border)",
+                    borderRadius: "var(--dd-radius)",
+                    background: "var(--dd-bg-subtle)",
+                    color: "var(--dd-text)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Clear override
+                </button>
+              ) : null}
+            </label>
           ) : null}
           {node.data.kind === "flex" || node.data.kind === "flex_starter" ? (
             <label className="inspector__field">

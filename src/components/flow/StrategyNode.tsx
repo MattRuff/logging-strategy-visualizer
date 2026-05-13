@@ -106,6 +106,9 @@ export function StrategyNode({ id, data, selected }: NodeProps<FlowStrategyNode>
   const siemTbMo = useStrategyStore((s) =>
     d.kind === "siem" ? (s.nodeVolumes.get(id)?.tbPerMonth ?? 0) : 0
   );
+  const pipelinesTbMo = useStrategyStore((s) =>
+    d.kind === "pipelines" ? (s.nodeVolumes.get(id)?.tbPerMonth ?? 0) : 0
+  );
   const archiveSearchTbMo = useStrategyStore((s) =>
     d.kind === "archive_search" ? (s.nodeVolumes.get(id)?.tbPerMonth ?? 0) : 0
   );
@@ -118,6 +121,17 @@ export function StrategyNode({ id, data, selected }: NodeProps<FlowStrategyNode>
       ? `${d.totalTbPerMonth ?? DEFAULT_TOTAL_TB_PER_MONTH} TB/mo · ${(
           d.millionLinesPerMonth ?? DEFAULT_MILLION_LINES_PER_MONTH
         ).toLocaleString("en-US")}M log lines/mo`
+      : d.kind === "pipelines"
+        ? (() => {
+            const guidance = Math.max(0, Math.ceil(pipelinesTbMo / 30));
+            const ov = d.opUnitsOverride;
+            const eff = ov != null && Number.isFinite(ov)
+              ? Math.max(0, Math.ceil(ov))
+              : guidance;
+            return `${eff} vCPU${eff === 1 ? "" : "s"}${
+              ov != null ? ` (override; auto ${guidance})` : ""
+            } · ${pipelinesTbMo.toFixed(1)} TB/mo`;
+          })()
       : d.kind === "index" && d.retentionDays != null
         ? `${d.tierLabel ?? "Std"} · ${d.retentionDays}d`
         : d.kind === "flex" || d.kind === "flex_starter"

@@ -5,7 +5,6 @@ import {
   orderedBfsFromSources,
   sumSourceTbPerMonth,
   tbPerDayToTbPerMonth,
-  tbPerMonthToTbPerDay,
 } from "./graphMath";
 import {
   type FlexComputeTier,
@@ -188,13 +187,13 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     }
 
     if (kind === "pipelines") {
-      const effTbDay = tbPerMonthToTbPerDay(effTbMo);
-      const guidanceOps = Math.max(1, Math.ceil(effTbDay));
-      // OP vCPU is sold in whole units; honor an explicit override (also rounded up).
+      // 1 vCPU covers 30 TB/mo (= 1 TB/day). Default tracks volume dynamically;
+      // an explicit override sticks until cleared.
+      const guidanceOps = Math.max(0, Math.ceil(effTbMo / 30));
       const override = node.data.opUnitsOverride;
       const ops =
         override != null && Number.isFinite(override)
-          ? Math.max(1, Math.ceil(override))
+          ? Math.max(0, Math.ceil(override))
           : guidanceOps;
       const opRate = resolvePrice("op_monthly_per_op", ov);
       const monthly = ops * opRate;
