@@ -821,7 +821,7 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
       const next =
         units === undefined || !Number.isFinite(units)
           ? undefined
-          : Math.max(1, Math.ceil(units));
+          : Math.max(0, Math.ceil(units));
       set((state) => ({
         nodes: state.nodes.map((n) =>
           n.id === id
