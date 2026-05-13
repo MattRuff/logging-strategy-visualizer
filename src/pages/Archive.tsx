@@ -1,29 +1,40 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
-import { workloadApi, type ArchiveSummary } from "@/lib/workloadApi";
+import { workloadApi, type TemplateSummary } from "@/lib/workloadApi";
 import { SubPageHeader } from "@/components/SubPageHeader";
 
 export function Archive() {
   const { accessToken, signIn } = useAuth();
-  const [items, setItems] = useState<ArchiveSummary[] | null>(null);
+  const [items, setItems] = useState<TemplateSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accessToken) return;
     workloadApi
-      .listArchive(accessToken)
+      .listTemplates(accessToken)
       .then((r) => setItems(r.workloads))
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, [accessToken]);
 
+  // Officials first, then by publishedAt desc. Stable on the existing publishedAt sort.
+  const sorted = useMemo(() => {
+    if (!items) return items;
+    return [...items].sort((a, b) => {
+      const ao = a.isOfficial ? 1 : 0;
+      const bo = b.isOfficial ? 1 : 0;
+      if (ao !== bo) return bo - ao;
+      return b.publishedAt.localeCompare(a.publishedAt);
+    });
+  }, [items]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <SubPageHeader title="Archive" />
+      <SubPageHeader title="Templates" />
       <main style={{ padding: "24px 32px", maxWidth: 960, width: "100%", margin: "0 auto" }}>
         {!accessToken ? (
           <section style={cardStyle}>
-            <h2 style={h2Style}>Sign in to browse the archive</h2>
+            <h2 style={h2Style}>Sign in to browse templates</h2>
             <p style={mutedText}>Anything published by your teammates shows up here, read-only.</p>
             <button
               type="button"
@@ -36,12 +47,14 @@ export function Archive() {
           </section>
         ) : (
           <>
-            <h2 style={h2Style}>Archive</h2>
-            <p style={{ ...mutedText, marginBottom: 16 }}>Read-only scenarios published by anyone on the team.</p>
+            <h2 style={h2Style}>Templates</h2>
+            <p style={{ ...mutedText, marginBottom: 16 }}>
+              Read-only scenarios published by the team. Official templates from admins are pinned to the top.
+            </p>
             {error && <p style={errStyle}>{error}</p>}
-            {!items && <p style={mutedText}>Loading…</p>}
-            {items && items.length === 0 && <p style={mutedText}>No published scenarios yet.</p>}
-            {items && items.length > 0 && (
+            {!sorted && <p style={mutedText}>Loading…</p>}
+            {sorted && sorted.length === 0 && <p style={mutedText}>No published templates yet.</p>}
+            {sorted && sorted.length > 0 && (
               <div style={{ background: "var(--dd-surface)", borderRadius: "var(--dd-radius-lg)", boxShadow: "var(--dd-shadow)", overflow: "hidden", border: "1px solid var(--dd-border)" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
@@ -52,12 +65,13 @@ export function Archive() {
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((it) => (
+                    {sorted.map((it) => (
                       <tr key={it.id} style={{ borderTop: "1px solid var(--dd-border)" }}>
                         <td style={td}>
                           <Link to={`/visualizer?id=${encodeURIComponent(it.id)}&archive=1`} style={linkStyle}>
                             {it.name}
                           </Link>
+                          {it.isOfficial && <span style={badgeStyle}>Official</span>}
                         </td>
                         <td style={{ ...td, color: "var(--dd-text-muted)" }}>{it.ownerEmail ?? "—"}</td>
                         <td style={{ ...td, color: "var(--dd-text-muted)" }}>{new Date(it.publishedAt).toLocaleString()}</td>
@@ -95,3 +109,16 @@ const th: React.CSSProperties = {
   fontWeight: 700,
 };
 const td: React.CSSProperties = { padding: "10px 14px" };
+const badgeStyle: React.CSSProperties = {
+  marginLeft: 8,
+  display: "inline-block",
+  padding: "2px 8px",
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+  background: "var(--dd-purple)",
+  color: "#fff",
+  borderRadius: 999,
+  verticalAlign: "middle",
+};

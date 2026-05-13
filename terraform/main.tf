@@ -2,13 +2,15 @@ locals {
   site_origin_id = "s3-${var.project_name}"
   api_origin_id  = "apigw-${var.project_name}"
 
-  # Five Lambdas, all sharing one zip; each function points at its own subdir's handler.
+  # Lambdas, all sharing one zip; each function points at its own subdir's handler.
   lambda_functions = {
     saveWorkload    = { handler = "saveWorkload/index.handler", method = "PUT", route = "/api/workloads/{id}" }
     loadWorkload    = { handler = "loadWorkload/index.handler", method = "GET", route = "/api/workloads/{id}" }
     listMyWorkloads = { handler = "listMyWorkloads/index.handler", method = "GET", route = "/api/workloads" }
     publish         = { handler = "publish/index.handler", method = "POST", route = "/api/workloads/{id}/publish" }
     listArchive     = { handler = "listArchive/index.handler", method = "GET", route = "/api/archive" }
+    listAdmins      = { handler = "listAdmins/index.handler", method = "GET", route = "/api/admins" }
+    addAdmin        = { handler = "addAdmin/index.handler", method = "POST", route = "/api/admins" }
   }
 }
 

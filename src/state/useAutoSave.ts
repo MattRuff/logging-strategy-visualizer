@@ -28,6 +28,7 @@ const buildPayload = (state = useStrategyStore.getState()) => ({
   pricingOverrides: state.pricingOverrides,
   flexComputeTier: state.flexComputeTier,
   layoutOrientation: state.layoutOrientation,
+  templateId: state.templateId,
 });
 
 /**

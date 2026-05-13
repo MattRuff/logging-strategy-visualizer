@@ -114,6 +114,8 @@ export interface StrategyStore {
   pricingOverrides: Partial<Record<PricingKey, number>>;
   flexComputeTier: FlexComputeTier;
   layoutOrientation: LayoutOrientation;
+  /** When this scenario was cloned from a published template, the source template's workload id. */
+  templateId: string | null;
   sheetConflicts: string[];
   selectedNodeId: string | null;
 
@@ -160,6 +162,7 @@ export interface StrategyStore {
   setPricingOverride: (key: PricingKey, value: number | undefined) => void;
   resetPricingDefaults: () => void;
   setLayoutOrientation: (o: LayoutOrientation) => void;
+  setTemplateId: (id: string | null) => void;
   autoLayout: () => void;
 
   applyRoutePctFromSheet: (routeNodeId: string, pctOfTotalLeaf: number) => void;
@@ -225,6 +228,7 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
     edges: initial.edges,
     pricingOverrides: {} as Partial<Record<PricingKey, number>>,
     layoutOrientation: "horizontal" as LayoutOrientation,
+    templateId: null as string | null,
     sheetConflicts: [] as string[],
     selectedNodeId: null as string | null,
     past: [] as HistorySnapshot[],
@@ -640,6 +644,8 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
       });
     },
 
+    setTemplateId: (id) => set({ templateId: id }),
+
     autoLayout: () => {
       const s = get();
       if (s.nodes.length === 0) return;
@@ -718,6 +724,7 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
         pricingOverrides: {},
         sheetConflicts: [],
         selectedNodeId: null,
+        templateId: null,
       });
       set(rebuildDerived(get()));
     },

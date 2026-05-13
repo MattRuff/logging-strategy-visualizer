@@ -37,11 +37,11 @@ const modes: {
       "Open, rename, or publish any of your saved scenarios. Sign in to start auto-saving as you edit.",
   },
   {
-    to: "/archive",
-    title: "Browse archive",
-    subtitle: "Read-only · published by anyone",
+    to: "/templates",
+    title: "Browse templates",
+    subtitle: "Read-only · published by the team",
     description:
-      "Open scenarios published by your teammates. View them read-only, or use “Save as…” to fork into your own list.",
+      "Open templates published by your teammates. Official templates from admins are pinned to the top — start a new scenario from any of them.",
   },
 ];
 
@@ -123,7 +123,7 @@ export function Landing() {
               </li>
               <li>
                 Sign in and your edits auto-save under a named scenario; come
-                back later, or publish to the archive for the team.
+                back later, or publish as a template for the team.
               </li>
             </ol>
           </div>

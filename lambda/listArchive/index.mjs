@@ -19,7 +19,7 @@ export const handler = async (event, context) => {
       IndexName: "byUpdatedAt",
       KeyConditionExpression: "pk = :pk",
       ExpressionAttributeValues: { ":pk": ARCHIVE_PK },
-      ProjectionExpression: "id, #n, ownerEmail, publishedAt, updatedAt",
+      ProjectionExpression: "id, #n, ownerEmail, publishedAt, updatedAt, isOfficial",
       ExpressionAttributeNames: { "#n": "name" },
       ScanIndexForward: false,
       Limit: 500,
