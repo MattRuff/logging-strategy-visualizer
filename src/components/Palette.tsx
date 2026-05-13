@@ -23,48 +23,49 @@ const SOURCE_ITEM: Item = {
 
 const SECTIONS: Section[] = [
   {
-    id: "pre-ingest",
-    title: "Pre-ingest",
+    id: "ingestion-pipelines",
+    title: "Ingestion & Pipelines",
     accent: "#7c3aed",
     items: [
+      { kind: "ingest", title: "Ingest", hint: "Datadog ingest hop" },
       {
         kind: "pipelines",
-        title: "Obs. Pipelines",
+        title: "OP",
         hint: "Observability Pipelines Plus (OP) pricing",
       },
       { kind: "siem", title: "SIEM", hint: "Pre-ingest SIEM (volume-tier $/GB)" },
-      {
-        kind: "third_party",
-        title: "3rd Party",
-        hint: "Customizable: GB or MM lines, custom $/unit",
-      },
     ],
   },
   {
-    id: "ingest-hot",
-    title: "Ingest & Hot",
+    id: "datadog-ui",
+    title: "Datadog UI",
     accent: "#3399ff",
     items: [
       { kind: "ingest", title: "Ingest", hint: "Datadog ingest hop" },
-      { kind: "index", title: "Index (hot)", hint: "Indexed / standard tier" },
-    ],
-  },
-  {
-    id: "retention",
-    title: "Retention",
-    accent: "#00b4a1",
-    items: [
+      { kind: "index", title: "Index", hint: "Indexed / standard tier" },
       { kind: "flex", title: "Flex", hint: "Flex storage" },
       {
         kind: "flex_starter",
         title: "Flex Starter",
         hint: "Flex Logs Starter — pay-per-event, no compute",
       },
-      { kind: "archive", title: "Archive", hint: "S3 / long-term" },
       {
         kind: "archive_search",
         title: "Archive Search",
         hint: "Searches against archived data ($/GB scanned)",
+      },
+    ],
+  },
+  {
+    id: "other-resources",
+    title: "Other Resources",
+    accent: "#e17840",
+    items: [
+      { kind: "archive", title: "Archive", hint: "S3 / long-term" },
+      {
+        kind: "third_party",
+        title: "3rd Party",
+        hint: "Customizable: GB or MM lines, custom $/unit",
       },
     ],
   },
@@ -82,11 +83,16 @@ export function Palette() {
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const renderChip = (it: Item, accent: string) => (
+  const renderChip = (
+    it: Item,
+    accent: string,
+    keyPrefix: string,
+    extraClass = ""
+  ) => (
     <button
-      key={it.kind}
+      key={`${keyPrefix}-${it.kind}`}
       type="button"
-      className="palette__chip"
+      className={`palette__chip ${extraClass}`}
       draggable
       onDragStart={(e) => onDragStart(e, it.kind)}
       title={it.hint}
@@ -103,7 +109,12 @@ export function Palette() {
   return (
     <div className="palette">
       <div className="palette__section palette__section--source">
-        {renderChip(SOURCE_ITEM, "var(--dd-purple)")}
+        {renderChip(
+          SOURCE_ITEM,
+          "var(--dd-purple)",
+          "source",
+          "palette__chip--source"
+        )}
       </div>
       {SECTIONS.map((section) => (
         <div key={section.id} className="palette__section">
@@ -118,7 +129,9 @@ export function Palette() {
             {section.title}
           </div>
           <div className="palette__grid">
-            {section.items.map((it) => renderChip(it, section.accent))}
+            {section.items.map((it) =>
+              renderChip(it, section.accent, section.id)
+            )}
           </div>
         </div>
       ))}

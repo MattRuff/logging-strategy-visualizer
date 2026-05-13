@@ -899,6 +899,21 @@ body {
   transform: translateY(1px);
 }
 
+.palette__chip--source {
+  width: 100%;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 14px 16px;
+  border-left-width: 5px;
+  letter-spacing: 0.02em;
+  text-align: center;
+  background: var(--dd-purple-tint);
+}
+
+.palette__chip--source:hover {
+  background: color-mix(in srgb, var(--dd-purple) 18%, var(--dd-surface));
+}
+
 .palette__chip--group {
   cursor: pointer;
   width: 100%;
