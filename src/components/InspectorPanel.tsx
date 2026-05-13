@@ -93,13 +93,16 @@ export function InspectorPanel() {
                 <input
                   type="number"
                   min={0}
-                  step={0.1}
+                  step={1}
                   value={
                     node.data.totalTbPerMonth ?? DEFAULT_TOTAL_TB_PER_MONTH
                   }
                   onChange={(e) =>
                     updateNodeData(node.id, {
-                      totalTbPerMonth: Math.max(0, Number(e.target.value)),
+                      totalTbPerMonth: Math.max(
+                        0,
+                        Math.round(Number(e.target.value))
+                      ),
                     })
                   }
                 />

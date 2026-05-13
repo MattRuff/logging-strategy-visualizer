@@ -22,17 +22,10 @@ function unitForTargetKind(kind: NodeKind | undefined): {
   return { label: "M lines/mo", kind: "mlines" };
 }
 
-function formatVolume(value: number, unit: "mlines" | "tb"): string {
+function formatVolume(value: number, _unit: "mlines" | "tb"): string {
   if (!Number.isFinite(value)) return "0";
-  if (unit === "mlines") {
-    if (value === 0) return "0";
-    if (value >= 100) return value.toFixed(0);
-    if (value >= 10) return value.toFixed(1);
-    return value.toFixed(2);
-  }
-  if (value === 0) return "0";
-  if (value >= 10) return value.toFixed(2);
-  return value.toFixed(3);
+  // Integer-only: drop fractional precision on display so the diagram stays clean.
+  return String(Math.round(value));
 }
 
 /** % of parent volume routed along this edge into the downstream node */
@@ -152,7 +145,7 @@ function PctInput({
         type="number"
         min={0}
         max={100}
-        step={0.1}
+        step={1}
         title="% of logs entering the downstream node via this link"
         size={sizeFor(value)}
         value={value}
@@ -194,7 +187,7 @@ function VolumeInput({
       <input
         type="number"
         min={0}
-        step={unit.kind === "tb" ? 0.01 : 0.1}
+        step={1}
         disabled={disabled}
         size={sizeFor(draft)}
         value={draft}
