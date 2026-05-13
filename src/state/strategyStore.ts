@@ -165,6 +165,14 @@ export interface StrategyStore {
   applyRoutePctFromSheet: (routeNodeId: string, pctOfTotalLeaf: number) => void;
 
   newScenario: () => void;
+  /** Reset the canvas to the template + clear pricing/qty/notes overrides. */
+  resetToTemplate: () => void;
+  /** Update node.data.notes — surfaces in the cost sheet Notes column. */
+  updateNodeNotes: (id: string, notes: string) => void;
+  /** Set or clear the OP units override (rounded up to a positive int when present). */
+  setOpUnitsOverride: (id: string, units: number | undefined) => void;
+  /** Set or clear the editable per-month quantity override for a sheet row. */
+  setQtyOverride: (id: string, qty: number | undefined) => void;
 
   setSelectedNodeId: (id: string | null) => void;
 
@@ -695,6 +703,73 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
         sheetConflicts: [],
         selectedNodeId: null,
       });
+      set(rebuildDerived(get()));
+    },
+
+    resetToTemplate: () => {
+      pushHistoryInternal();
+      const g = createInitialGraph(get().layoutOrientation);
+      reseedIdCounter(g.nodes, g.edges);
+      set({
+        nodes: g.nodes,
+        edges: g.edges,
+        pricingOverrides: {},
+        sheetConflicts: [],
+        selectedNodeId: null,
+      });
+      set(rebuildDerived(get()));
+    },
+
+    updateNodeNotes: (id, notes) => {
+      pushHistoryInternal();
+      set((state) => ({
+        nodes: state.nodes.map((n) =>
+          n.id === id
+            ? { ...n, data: { ...n.data, notes } as StrategyNodeData }
+            : n
+        ),
+      }));
+      set(rebuildDerived(get()));
+    },
+
+    setOpUnitsOverride: (id, units) => {
+      pushHistoryInternal();
+      const next =
+        units === undefined || !Number.isFinite(units)
+          ? undefined
+          : Math.max(1, Math.ceil(units));
+      set((state) => ({
+        nodes: state.nodes.map((n) =>
+          n.id === id
+            ? {
+                ...n,
+                data: {
+                  ...n.data,
+                  opUnitsOverride: next,
+                } as StrategyNodeData,
+              }
+            : n
+        ),
+      }));
+      set(rebuildDerived(get()));
+    },
+
+    setQtyOverride: (id, qty) => {
+      pushHistoryInternal();
+      const next =
+        qty === undefined || !Number.isFinite(qty)
+          ? undefined
+          : Math.max(0, Math.round(qty));
+      set((state) => ({
+        nodes: state.nodes.map((n) =>
+          n.id === id
+            ? {
+                ...n,
+                data: { ...n.data, qtyOverride: next } as StrategyNodeData,
+              }
+            : n
+        ),
+      }));
       set(rebuildDerived(get()));
     },
 
