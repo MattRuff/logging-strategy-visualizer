@@ -9,6 +9,7 @@ export function MyWorkloads() {
   const [items, setItems] = useState<WorkloadSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -66,24 +67,46 @@ export function MyWorkloads() {
                         </td>
                         <td style={{ ...td, color: "var(--dd-text-muted)" }}>{new Date(it.updatedAt).toLocaleString()}</td>
                         <td style={{ ...td, textAlign: "right" }}>
-                          <button
-                            type="button"
-                            className="toolbar__btn toolbar__btn--ghost"
-                            style={ghostBtnDark}
-                            disabled={publishingId === it.id}
-                            onClick={async () => {
-                              setPublishingId(it.id);
-                              try {
-                                await workloadApi.publish(accessToken, it.id);
-                              } catch (err) {
-                                setError(err instanceof Error ? err.message : String(err));
-                              } finally {
-                                setPublishingId(null);
-                              }
-                            }}
-                          >
-                            {publishingId === it.id ? "Publishing…" : "Publish as template"}
-                          </button>
+                          <div style={{ display: "inline-flex", gap: 8, justifyContent: "flex-end" }}>
+                            <button
+                              type="button"
+                              className="toolbar__btn toolbar__btn--ghost"
+                              style={ghostBtnDark}
+                              disabled={publishingId === it.id || deletingId === it.id}
+                              onClick={async () => {
+                                setPublishingId(it.id);
+                                try {
+                                  await workloadApi.publish(accessToken, it.id);
+                                } catch (err) {
+                                  setError(err instanceof Error ? err.message : String(err));
+                                } finally {
+                                  setPublishingId(null);
+                                }
+                              }}
+                            >
+                              {publishingId === it.id ? "Publishing…" : "Publish as template"}
+                            </button>
+                            <button
+                              type="button"
+                              className="toolbar__btn toolbar__btn--ghost"
+                              style={dangerBtn}
+                              disabled={deletingId === it.id || publishingId === it.id}
+                              onClick={async () => {
+                                if (!window.confirm(`Delete "${it.name}"? This can't be undone.`)) return;
+                                setDeletingId(it.id);
+                                try {
+                                  await workloadApi.remove(accessToken, it.id);
+                                  setItems((prev) => (prev ? prev.filter((w) => w.id !== it.id) : prev));
+                                } catch (err) {
+                                  setError(err instanceof Error ? err.message : String(err));
+                                } finally {
+                                  setDeletingId(null);
+                                }
+                              }}
+                            >
+                              {deletingId === it.id ? "Deleting…" : "Delete"}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -123,4 +146,9 @@ const ghostBtnDark: React.CSSProperties = {
   background: "transparent",
   border: "1px solid var(--dd-border-strong)",
   color: "var(--dd-text)",
+};
+const dangerBtn: React.CSSProperties = {
+  background: "transparent",
+  border: "1px solid var(--dd-border-strong)",
+  color: "crimson",
 };

@@ -91,6 +91,13 @@ export const workloadApi = {
       { method: "POST" }
     );
   },
+  remove(accessToken: string, id: string) {
+    return request<{ id: string; archiveDeleted: boolean }>(
+      accessToken,
+      `/workloads/${encodeURIComponent(id)}`,
+      { method: "DELETE" }
+    );
+  },
   listArchive(accessToken: string) {
     return request<{ workloads: ArchiveSummary[] }>(accessToken, "/archive");
   },
