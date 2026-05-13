@@ -352,9 +352,22 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
         now - lastEdgePctEdit.at < EDGE_PCT_COALESCE_MS;
       if (!recent) pushHistoryInternal();
       lastEdgePctEdit = { edgeId, at: now };
-      const clamped = Math.max(0, Math.min(100, pct));
-      set((state) => ({
-        edges: state.edges.map((e) =>
+      const state = get();
+      const target = state.edges.find((e) => e.id === edgeId);
+      // Cap the new value so sibling edges out of the same parent never sum >100.
+      // Decimals are stripped here so the diagram stays integer-only.
+      let siblingSum = 0;
+      if (target) {
+        for (const e of state.edges) {
+          if (e.id !== edgeId && e.source === target.source) {
+            siblingSum += e.data?.pct ?? 0;
+          }
+        }
+      }
+      const headroom = Math.max(0, 100 - siblingSum);
+      const clamped = Math.max(0, Math.min(headroom, Math.round(pct)));
+      set((s) => ({
+        edges: s.edges.map((e) =>
           e.id === edgeId
             ? { ...e, data: { ...e.data, pct: clamped } }
             : e
