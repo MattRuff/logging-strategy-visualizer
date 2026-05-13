@@ -507,15 +507,12 @@ resource "aws_cloudfront_distribution" "site" {
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
   }
 
+  # SPA fallback: S3 + OAC returns 403 (not 404) for missing keys, so the 403
+  # rewrite is what makes client-side routing work. We intentionally do NOT
+  # rewrite 404 distribution-wide — that masks legitimate 404s from /api/*
+  # (e.g. workload-not-found) as HTML 200, breaking the JSON client.
   custom_error_response {
     error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 0
-  }
-
-  custom_error_response {
-    error_code            = 404
     response_code         = 200
     response_page_path    = "/index.html"
     error_caching_min_ttl = 0

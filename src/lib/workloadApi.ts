@@ -58,6 +58,20 @@ async function request<T>(
     throw new ApiError(res.status, message || res.statusText);
   }
   if (res.status === 204) return undefined as T;
+
+  // CloudFront rewrites distribution-wide 403/404 to /index.html with status
+  // 200 (for SPA routing). API GW errors get caught by that rewrite too, so a
+  // 200 with HTML body actually means the upstream returned a 403 or 404.
+  // Detect it and surface a real ApiError instead of letting res.json() blow
+  // up with "Unexpected token '<'".
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    const text = await res.text();
+    if (/^\s*<(!doctype|html)/i.test(text)) {
+      throw new ApiError(404, "Not found");
+    }
+    throw new ApiError(res.status, `Unexpected non-JSON response (${contentType || "no content-type"})`);
+  }
   return (await res.json()) as T;
 }
 
