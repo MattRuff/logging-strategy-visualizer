@@ -5,6 +5,7 @@ export type NodeKind =
   | "source"
   | "pipelines"
   | "siem"
+  | "third_party"
   | "ingest"
   | "flex_compute"
   | "flex"
@@ -29,6 +30,18 @@ export interface StrategyNodeData extends Record<string, unknown> {
   flexRetentionDays?: number;
   /** Group: persistent color used on the canvas + spend bar so each group is distinct. */
   groupColor?: string;
+  /** User-authored note for the cost sheet row tied to this node. */
+  notes?: string;
+  /** Editable override for OP units (vCPU). Falls back to ceil(TB/day) when undefined. */
+  opUnitsOverride?: number;
+  /** Editable override for monthly quantity on the cost sheet. */
+  qtyOverride?: number;
+  /** Third-party node: which unit the user types into (and which we cost on). */
+  thirdPartyUnit?: "GB" | "MM";
+  /** Third-party node: monthly quantity in the chosen unit. */
+  thirdPartyQty?: number;
+  /** Third-party node: $ per unit (per GB or per million log lines). */
+  thirdPartyUnitCost?: number;
 }
 
 export type StrategyNode = Node<StrategyNodeData>;
@@ -42,6 +55,7 @@ export type SheetLineKind = "node" | "flex_aggregate" | "flex_compute";
 export type SheetDisplayType =
   | "OP"
   | "SIEM"
+  | "Third Party"
   | "Ingest"
   | "Flex Storage"
   | "Flex Compute"
@@ -76,6 +90,8 @@ export interface LineItem {
   groupName?: string;
   /** Per-group color (cached so the spend bar / sheet styling can reuse it) */
   groupColor?: string;
+  /** Free-form note carried through to the cost sheet's Notes column. */
+  notes?: string;
 }
 
 export interface SplitValidation {

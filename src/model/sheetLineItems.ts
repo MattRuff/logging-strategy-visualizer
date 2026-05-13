@@ -189,7 +189,13 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
 
     if (kind === "pipelines") {
       const effTbDay = tbPerMonthToTbPerDay(effTbMo);
-      const ops = Math.max(1, Math.ceil(effTbDay));
+      const guidanceOps = Math.max(1, Math.ceil(effTbDay));
+      // OP vCPU is sold in whole units; honor an explicit override (also rounded up).
+      const override = node.data.opUnitsOverride;
+      const ops =
+        override != null && Number.isFinite(override)
+          ? Math.max(1, Math.ceil(override))
+          : guidanceOps;
       const opRate = resolvePrice("op_monthly_per_op", ov);
       const monthly = ops * opRate;
       rows.push({
@@ -198,11 +204,15 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         displayType: "OP",
         skuKey: "observability_pipelines_plus",
         description: "Observability Pipelines",
-        quantityPerMonth: Math.round(effTbMo * 1000) / 1000,
+        quantityPerMonth: ops,
         unitPrice: opRate,
         monthly,
         annual: annual(monthly),
-        millionLinesNote: "TB/mo",
+        millionLinesNote:
+          override != null
+            ? `vCPU (override; guidance ${guidanceOps})`
+            : "vCPU (guidance from TB/day)",
+        notes: node.data.notes,
         pricingKey: "op_monthly_per_op",
       });
       continue;
@@ -224,6 +234,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         unitPrice: unit,
         monthly,
         annual: annual(monthly),
+        notes: node.data.notes,
         millionLinesNote: "GB/mo · tier $/GB",
         pricingKey: tier.key,
       });
@@ -231,9 +242,19 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     }
 
     if (kind === "ingest") {
-      const q = Math.round(effMLines * 1000) / 1000;
+      const qDerived = Math.round(effMLines * 1000) / 1000;
+      const q = node.data.qtyOverride ?? qDerived;
       const unit = resolvePrice("log_ingest_per_million", ov);
-      const monthly = Math.round(q * unit * 100) / 100;
+      // If every downstream edge from this ingest goes to a Standard (index) node,
+      // ingest cost rolls into Standard pricing — show $0 to avoid double-counting.
+      const outs = edges.filter((e) => e.source === nodeId);
+      const totalOut = outs.reduce((s, e) => s + (e.data?.pct ?? 0), 0);
+      const standardOut = outs.reduce((s, e) => {
+        const t = nodeById.get(e.target);
+        return t?.data.kind === "index" ? s + (e.data?.pct ?? 0) : s;
+      }, 0);
+      const allStandard = totalOut > 0 && Math.abs(standardOut - totalOut) < 0.001;
+      const monthly = allStandard ? 0 : Math.round(q * unit * 100) / 100;
       rows.push({
         ...base,
         nodeLabel: node.data.label,
@@ -241,10 +262,13 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         skuKey: "log_ingestion",
         description: "Log ingestion",
         quantityPerMonth: q,
-        unitPrice: unit,
+        unitPrice: allStandard ? 0 : unit,
         monthly,
         annual: annual(monthly),
-        millionLinesNote: "Million log lines, per month",
+        notes: node.data.notes,
+        millionLinesNote: allStandard
+          ? "Bundled into Standard pricing"
+          : "Million log lines, per month",
         pricingKey: "log_ingest_per_million",
       });
       continue;
@@ -253,7 +277,8 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     if (kind === "index") {
       const days = node.data.retentionDays ?? 3;
       const pk = indexedRetentionToKey(days);
-      const q = Math.round(effMLines * 1000) / 1000;
+      const qDerived = Math.round(effMLines * 1000) / 1000;
+      const q = node.data.qtyOverride ?? qDerived;
       const unit = resolvePrice(pk, ov);
       const monthly = Math.round(q * unit * 100) / 100;
       rows.push({
@@ -266,6 +291,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         unitPrice: unit,
         monthly,
         annual: annual(monthly),
+        notes: node.data.notes,
         millionLinesNote: "Million log lines, per month",
         pricingKey: pk,
       });
@@ -285,6 +311,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         monthly: 0,
         annual: 0,
         millionLinesNote: "TB/mo",
+        notes: node.data.notes,
       });
       continue;
     }
@@ -304,8 +331,30 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         unitPrice: unit,
         monthly,
         annual: annual(monthly),
+        notes: node.data.notes,
         millionLinesNote: "GB scanned/mo",
         pricingKey: "archive_search_per_gb",
+      });
+      continue;
+    }
+
+    if (kind === "third_party") {
+      const unitLabel = node.data.thirdPartyUnit ?? "GB";
+      const q = Math.max(0, node.data.thirdPartyQty ?? 0);
+      const unit = Math.max(0, node.data.thirdPartyUnitCost ?? 0);
+      const monthly = Math.round(q * unit * 100) / 100;
+      rows.push({
+        ...base,
+        nodeLabel: node.data.label,
+        displayType: "Third Party",
+        skuKey: "third_party",
+        description: "3rd Party",
+        quantityPerMonth: q,
+        unitPrice: unit,
+        monthly,
+        annual: annual(monthly),
+        notes: node.data.notes,
+        millionLinesNote: unitLabel === "MM" ? "M lines/mo · $/M" : "GB/mo · $/GB",
       });
       continue;
     }
@@ -328,6 +377,7 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
         unitPrice: unit,
         monthly,
         annual: annual(monthly),
+        notes: node.data.notes,
         millionLinesNote: "M lines/mo · $/M-30d",
         pricingKey: "flex_starter_per_million_30d",
       });
@@ -347,7 +397,9 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
     });
   }
 
-  if (hasFlexNode && flexLeaves.length > 0 && !flexStorageRowAdded) {
+  // Always surface a Flex Storage row when a flex node exists, even if no flow
+  // reaches it yet — otherwise users miss the SKU when first laying out the graph.
+  if (hasFlexNode && !flexStorageRowAdded) {
     rows.push(buildFlexStorageLineItem());
   }
 

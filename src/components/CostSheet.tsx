@@ -19,6 +19,7 @@ const helper = createColumnHelper<LineItem>();
 const TYPE_BADGE_CLASS: Record<LineItem["displayType"], string> = {
   OP: "sheet-badge--op",
   SIEM: "sheet-badge--siem",
+  "Third Party": "sheet-badge--third-party",
   Ingest: "sheet-badge--ingest",
   "Flex Storage": "sheet-badge--flex-storage",
   "Flex Compute": "sheet-badge--flex-compute",
@@ -41,6 +42,9 @@ export function CostSheet() {
   const sheetLineItems = useStrategyStore((s) => s.sheetLineItems);
   const nodes = useStrategyStore((s) => s.nodes);
   const updateNodeData = useStrategyStore((s) => s.updateNodeData);
+  const setQtyOverride = useStrategyStore((s) => s.setQtyOverride);
+  const setOpUnitsOverride = useStrategyStore((s) => s.setOpUnitsOverride);
+  const updateNodeNotes = useStrategyStore((s) => s.updateNodeNotes);
   const setPricingOverride = useStrategyStore((s) => s.setPricingOverride);
   const applyRoutePctFromSheet = useStrategyStore(
     (s) => s.applyRoutePctFromSheet
@@ -67,28 +71,30 @@ export function CostSheet() {
         header: "% of total",
         cell: (ctx) => {
           const row = ctx.row.original;
+          const displayed =
+            row.pctOfTotal != null ? Math.ceil(row.pctOfTotal) : null;
           if (row.routeNodeId == null) {
             if (
               row.lineKind === "flex_aggregate" &&
-              row.pctOfTotal != null
+              displayed != null
             ) {
               return (
                 <span className="sheet-num sheet-num--readonly">
-                  {row.pctOfTotal}%
+                  {displayed}%
                 </span>
               );
             }
             return <span className="sheet-muted">—</span>;
           }
-          const v = row.pctOfTotal;
           return (
             <input
               className="sheet-input sheet-input--purple"
               type="number"
-              defaultValue={v ?? ""}
-              key={`${row.id}-${v}`}
+              step={1}
+              defaultValue={displayed ?? ""}
+              key={`${row.id}-${displayed}`}
               onBlur={(e) => {
-                const n = Number(e.target.value);
+                const n = Math.round(Number(e.target.value));
                 if (!Number.isFinite(n)) return;
                 applyRoutePctFromSheet(row.routeNodeId!, n);
               }}
@@ -97,61 +103,22 @@ export function CostSheet() {
         },
       }),
       helper.display({
-        id: "nodeLabel",
-        size: 160,
-        header: "Name",
+        id: "nameDescription",
+        size: 320,
+        header: "Name / Description",
         cell: (ctx) => {
           const row = ctx.row.original;
-          if (row.lineKind === "flex_compute") {
-            return <span className="sheet-muted">—</span>;
-          }
-          if (row.lineKind === "flex_aggregate") {
-            const v = row.nodeLabel;
-            return v != null && v !== "" ? (
-              <span className="sheet-name">{v}</span>
-            ) : (
-              <span className="sheet-muted">—</span>
-            );
-          }
-          if (row.lineKind !== "node" || !row.routeNodeId) {
-            const v = row.nodeLabel;
-            return v != null && v !== "" ? (
-              <span className="sheet-name">{v}</span>
-            ) : (
-              <span className="sheet-muted">—</span>
-            );
-          }
-          return (
-            <input
-              className="sheet-input sheet-input--blue"
-              type="text"
-              defaultValue={row.nodeLabel ?? ""}
-              key={`${row.id}-name-${row.nodeLabel}`}
-              onBlur={(e) =>
-                updateNodeData(row.routeNodeId!, {
-                  label: e.target.value,
-                })
-              }
-            />
-          );
-        },
-      }),
-      helper.display({
-        id: "description",
-        size: 240,
-        header: "Description",
-        cell: (ctx) => {
-          const row = ctx.row.original;
-          if (row.lineKind === "flex_aggregate" && row.routeNodeId) {
-            const raw =
-              nodes.find((n) => n.id === row.routeNodeId)?.data
-                .flexRetentionDays ?? 30;
-            const days = FLEX_RETENTION_DAY_OPTIONS.includes(raw)
-              ? raw
-              : nearestFlexRetentionDays(raw);
-            return (
-              <div className="sheet-desc-row">
-                <span className="sheet-desc-text">{row.description}</span>
+          // Inline retention selectors stay rendered alongside the editable name
+          // so the combined column carries everything Name + Description did.
+          const retentionWidget = (() => {
+            if (row.lineKind === "flex_aggregate" && row.routeNodeId) {
+              const raw =
+                nodes.find((n) => n.id === row.routeNodeId)?.data
+                  .flexRetentionDays ?? 30;
+              const days = FLEX_RETENTION_DAY_OPTIONS.includes(raw)
+                ? raw
+                : nearestFlexRetentionDays(raw);
+              return (
                 <select
                   className="sheet-select"
                   value={days}
@@ -168,16 +135,13 @@ export function CostSheet() {
                     </option>
                   ))}
                 </select>
-              </div>
-            );
-          }
-          if (row.lineKind === "node" && row.routeNodeId) {
-            const node = nodes.find((n) => n.id === row.routeNodeId);
-            if (node?.data.kind === "index") {
-              const days = node.data.retentionDays ?? 3;
-              return (
-                <div className="sheet-desc-row">
-                  <span className="sheet-desc-text">{row.description}</span>
+              );
+            }
+            if (row.lineKind === "node" && row.routeNodeId) {
+              const node = nodes.find((n) => n.id === row.routeNodeId);
+              if (node?.data.kind === "index") {
+                const days = node.data.retentionDays ?? 3;
+                return (
                   <select
                     className="sheet-select"
                     value={days}
@@ -185,7 +149,7 @@ export function CostSheet() {
                       const d = Number(e.target.value);
                       updateNodeData(row.routeNodeId!, {
                         retentionDays: d,
-                        label: `Indexed ${d}d`,
+                        label: `Standard Logs (${d}d)`,
                       });
                     }}
                   >
@@ -194,37 +158,94 @@ export function CostSheet() {
                     <option value={15}>15d</option>
                     <option value={30}>30d</option>
                   </select>
-                </div>
-              );
+                );
+              }
             }
-          }
+            return null;
+          })();
+
+          const nameDisplay =
+            row.lineKind === "node" && row.routeNodeId ? (
+              <input
+                className="sheet-input sheet-input--blue"
+                type="text"
+                defaultValue={row.nodeLabel ?? row.description}
+                key={`${row.id}-name-${row.nodeLabel}`}
+                onBlur={(e) =>
+                  updateNodeData(row.routeNodeId!, {
+                    label: e.target.value,
+                  })
+                }
+              />
+            ) : (
+              <span className="sheet-name">
+                {row.nodeLabel || row.description || "—"}
+              </span>
+            );
+
+          const subParts = [
+            row.lineKind !== "node" || row.nodeLabel !== row.description
+              ? row.description
+              : "",
+            row.millionLinesNote,
+          ].filter(Boolean);
           return (
-            <span className="sheet-input--blue">{row.description}</span>
+            <div className="sheet-desc-row">
+              {nameDisplay}
+              {subParts.length > 0 ? (
+                <span className="sheet-desc-sub">{subParts.join(" · ")}</span>
+              ) : null}
+              {retentionWidget}
+            </div>
           );
         },
       }),
       helper.accessor("quantityPerMonth", {
         size: 110,
         header: "Qty / mo",
-        cell: (ctx) => (
-          <span className="sheet-num sheet-num--readonly">
-            {ctx.row.original.quantityPerMonth != null
-              ? ctx.row.original.quantityPerMonth.toLocaleString(undefined, {
-                  maximumFractionDigits: 4,
-                })
-              : "—"}
-          </span>
-        ),
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          const q = row.quantityPerMonth;
+          if (q == null || !row.routeNodeId) {
+            return (
+              <span className="sheet-num sheet-num--readonly">
+                {q != null
+                  ? q.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                  : "—"}
+              </span>
+            );
+          }
+          const isOp = row.displayType === "OP";
+          return (
+            <input
+              className="sheet-input sheet-input--blue"
+              type="number"
+              step={1}
+              min={0}
+              defaultValue={Math.round(q)}
+              key={`${row.id}-qty-${q}`}
+              onBlur={(e) => {
+                const n = Math.round(Number(e.target.value));
+                if (!Number.isFinite(n)) return;
+                if (isOp) {
+                  setOpUnitsOverride(row.routeNodeId!, n);
+                } else {
+                  setQtyOverride(row.routeNodeId!, n);
+                }
+              }}
+            />
+          );
+        },
       }),
       helper.accessor("unitPrice", {
         size: 96,
-        header: "Unit $",
+        header: "Unit ($)",
         cell: (ctx) => {
           const row = ctx.row.original;
           if (row.pricingKey == null) {
             return (
               <span className="sheet-num">
-                {row.unitPrice != null ? row.unitPrice : "—"}
+                {row.unitPrice != null ? `$${row.unitPrice}` : "—"}
               </span>
             );
           }
@@ -246,43 +267,63 @@ export function CostSheet() {
       }),
       helper.accessor("monthly", {
         size: 104,
-        header: "Monthly",
+        header: "Monthly ($)",
         cell: (ctx) => (
           <span className="sheet-num">
             {ctx.row.original.monthly != null
-              ? ctx.row.original.monthly.toLocaleString(undefined, {
+              ? `$${ctx.row.original.monthly.toLocaleString(undefined, {
                   maximumFractionDigits: 2,
-                })
+                })}`
               : "—"}
           </span>
         ),
       }),
       helper.accessor("annual", {
         size: 104,
-        header: "Annual",
+        header: "Annual ($)",
         cell: (ctx) => (
           <span className="sheet-num">
             {ctx.row.original.annual != null
-              ? ctx.row.original.annual.toLocaleString(undefined, {
+              ? `$${ctx.row.original.annual.toLocaleString(undefined, {
                   maximumFractionDigits: 2,
-                })
+                })}`
               : "—"}
           </span>
         ),
       }),
-      helper.accessor("millionLinesNote", {
-        size: 140,
+      helper.accessor("notes", {
+        size: 180,
         header: "Notes",
-        cell: (ctx) => (
-          <span className="sheet-note">{ctx.row.original.millionLinesNote}</span>
-        ),
+        cell: (ctx) => {
+          const row = ctx.row.original;
+          if (!row.routeNodeId) {
+            return (
+              <span className="sheet-note">{row.notes ?? ""}</span>
+            );
+          }
+          return (
+            <input
+              className="sheet-input sheet-input--blue"
+              type="text"
+              placeholder="Add a note…"
+              defaultValue={row.notes ?? ""}
+              key={`${row.id}-note-${row.notes ?? ""}`}
+              onBlur={(e) => {
+                updateNodeNotes(row.routeNodeId!, e.target.value);
+              }}
+            />
+          );
+        },
       }),
     ],
     [
       applyRoutePctFromSheet,
       nodes,
       setPricingOverride,
+      setQtyOverride,
+      setOpUnitsOverride,
       updateNodeData,
+      updateNodeNotes,
     ]
   );
 
@@ -333,12 +374,13 @@ export function CostSheet() {
 
   return (
     <section className="cost-sheet">
-      <div className="cost-sheet__header">
+      <div className="cost-sheet__header cost-sheet__header--centered">
         <h2>Cost sheet</h2>
-        <div className="cost-sheet__totals">
+        <div className="cost-sheet__totals cost-sheet__totals--center">
           <span>
             Monthly total:{" "}
             <strong>
+              $
               {totals.monthly.toLocaleString(undefined, {
                 maximumFractionDigits: 2,
               })}
@@ -347,6 +389,7 @@ export function CostSheet() {
           <span>
             Annual total:{" "}
             <strong>
+              $
               {totals.annual.toLocaleString(undefined, {
                 maximumFractionDigits: 2,
               })}
@@ -426,7 +469,7 @@ export function CostSheet() {
               const monthlyIdx = headerIds.indexOf("monthly");
               const annualIdx = headerIds.indexOf("annual");
               const fmt = (n: number) =>
-                n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
               let prevGroupId: string | undefined;
               const flushSubtotal = (gid: string) => {
                 const sub = groupSubtotals.get(gid);

@@ -810,13 +810,42 @@ body {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.palette__title {
+.palette__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.palette__section + .palette__section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dd-border);
+}
+
+.palette__section--source + .palette__section {
+  border-top-color: transparent;
+  padding-top: 0;
+  margin-top: 6px;
+}
+
+.palette__section-title {
   font-weight: 700;
   font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--dd-text-muted);
-  margin-bottom: 8px;
+  color: var(--section-accent, var(--dd-text-muted));
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.palette__section-title::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--section-accent, var(--dd-border-strong));
 }
 
 .palette__grid {
@@ -827,27 +856,25 @@ body {
 
 .palette__chip {
   cursor: grab;
-  border: 1px dashed var(--dd-border-strong);
+  border: 1px solid var(--dd-border-strong);
+  border-left: 3px solid var(--chip-accent, var(--dd-purple));
   background: var(--dd-bg);
   border-radius: var(--dd-radius);
   padding: 8px 10px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--dd-purple);
-  transition: border-color 0.12s ease, background 0.12s ease;
+  color: var(--chip-accent, var(--dd-purple));
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.08s ease;
 }
 
 .palette__chip:hover {
-  border-color: var(--dd-purple-light);
-  background: var(--dd-purple-tint);
+  border-color: var(--chip-accent, var(--dd-purple-light));
+  background: color-mix(in srgb, var(--chip-accent, var(--dd-purple)) 10%, var(--dd-surface));
 }
 
 .palette__chip:active {
   cursor: grabbing;
-}
-
-.palette__title--secondary {
-  margin-top: 14px;
+  transform: translateY(1px);
 }
 
 .palette__chip--group {
@@ -1172,6 +1199,11 @@ body {
 .sheet-badge--archive-search {
   background: rgba(200, 101, 31, 0.14);
   color: #934811;
+}
+
+.sheet-badge--third-party {
+  background: rgba(180, 92, 242, 0.14);
+  color: #7c2bb0;
 }
 
 .sheet-desc-row {
@@ -1766,6 +1798,14 @@ body {
   color: #c8651f;
 }
 
+.strategy-node--third_party {
+  border-left-color: #b45cf2;
+}
+
+.strategy-node--third_party .strategy-node__badge {
+  color: #b45cf2;
+}
+
 .strategy-node__price {
   margin-top: 8px;
   font-size: 12px;
@@ -1991,4 +2031,83 @@ body {
 
 .rotate-toggle__btn--auto {
   color: var(--dd-purple);
+}
+
+/* Source inputs panel (top of visualizer page). */
+.source-inputs {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--dd-border);
+  background: var(--dd-surface);
+}
+.source-inputs__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.source-inputs__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.source-inputs__reset {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--dd-radius);
+  border: 1px solid var(--dd-border);
+  background: var(--dd-bg-subtle);
+  cursor: pointer;
+}
+.source-inputs__reset:hover {
+  background: var(--dd-border);
+}
+.source-inputs__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.source-inputs__row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.source-inputs__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--dd-text-muted);
+}
+.source-inputs__field input {
+  width: 160px;
+  padding: 4px 6px;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  font-size: 13px;
+}
+.source-inputs__empty {
+  font-size: 12px;
+  color: var(--dd-text-muted);
+  margin: 0;
+}
+
+/* Move cost-sheet totals toward the middle so they're harder to miss. */
+.cost-sheet__header--centered {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.cost-sheet__totals--center {
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  gap: 24px;
+}
+
+.sheet-desc-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--dd-text-muted);
+  margin-top: 2px;
 }

@@ -19,6 +19,7 @@ const kindLabel: Record<StrategyNodeData["kind"], string> = {
   source: "Source",
   pipelines: "Obs. Pipelines",
   siem: "SIEM",
+  third_party: "3rd Party",
   ingest: "Ingest",
   flex_compute: "Flex Compute",
   flex: "Flex",
@@ -127,7 +128,14 @@ export function StrategyNode({ id, data, selected }: NodeProps<FlowStrategyNode>
             ? `${siemTbMo.toFixed(2)} TB/mo`
             : d.kind === "archive_search"
               ? `${archiveSearchTbMo.toFixed(2)} TB scanned/mo`
-              : "";
+              : d.kind === "third_party"
+                ? `${(d.thirdPartyQty ?? 0).toLocaleString("en-US")} ${
+                    d.thirdPartyUnit ?? "GB"
+                  }/mo · $${(d.thirdPartyUnitCost ?? 0).toLocaleString(
+                    "en-US",
+                    { maximumFractionDigits: 4 }
+                  )}/${d.thirdPartyUnit ?? "GB"}`
+                : "";
 
   let capacityFill: React.ReactNode = null;
   if (d.kind === "flex_compute") {

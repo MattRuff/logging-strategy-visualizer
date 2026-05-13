@@ -4,7 +4,7 @@ import {
   getSmoothStepPath,
   type EdgeProps,
 } from "@xyflow/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { NodeKind } from "@/model/types";
 import { useStrategyStore } from "@/state/strategyStore";
 
@@ -22,17 +22,10 @@ function unitForTargetKind(kind: NodeKind | undefined): {
   return { label: "M lines/mo", kind: "mlines" };
 }
 
-function formatVolume(value: number, unit: "mlines" | "tb"): string {
+function formatVolume(value: number, _unit: "mlines" | "tb"): string {
   if (!Number.isFinite(value)) return "0";
-  if (unit === "mlines") {
-    if (value === 0) return "0";
-    if (value >= 100) return value.toFixed(0);
-    if (value >= 10) return value.toFixed(1);
-    return value.toFixed(2);
-  }
-  if (value === 0) return "0";
-  if (value >= 10) return value.toFixed(2);
-  return value.toFixed(3);
+  // Integer-only: drop fractional precision on display so the diagram stays clean.
+  return String(Math.round(value));
 }
 
 /** % of parent volume routed along this edge into the downstream node */
@@ -136,6 +129,15 @@ function PctInput({
 }) {
   const displayed = Number.isFinite(pct) ? String(pct) : "0";
   const [draft, setDraft] = useState(displayed);
+  const lastPctRef = useRef(pct);
+  // Re-sync draft when pct changes externally (e.g. a sibling edge edit recomputed
+  // this edge's share). Without this the input stays stuck on the first-mount value.
+  useEffect(() => {
+    if (pct !== lastPctRef.current) {
+      lastPctRef.current = pct;
+      setDraft(Number.isFinite(pct) ? String(pct) : "0");
+    }
+  }, [pct]);
   const value = draft;
   return (
     <label className="pct-edge-label__inner">
@@ -143,7 +145,7 @@ function PctInput({
         type="number"
         min={0}
         max={100}
-        step={0.1}
+        step={1}
         title="% of logs entering the downstream node via this link"
         size={sizeFor(value)}
         value={value}
@@ -185,7 +187,7 @@ function VolumeInput({
       <input
         type="number"
         min={0}
-        step={unit.kind === "tb" ? 0.01 : 0.1}
+        step={1}
         disabled={disabled}
         size={sizeFor(draft)}
         value={draft}

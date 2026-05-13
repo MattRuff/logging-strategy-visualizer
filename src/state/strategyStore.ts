@@ -165,6 +165,18 @@ export interface StrategyStore {
   applyRoutePctFromSheet: (routeNodeId: string, pctOfTotalLeaf: number) => void;
 
   newScenario: () => void;
+  /** Copy the currently-selected nodes (and edges between them) into the internal clipboard. */
+  copySelection: () => void;
+  /** Paste the internal clipboard, re-id'ing nodes/edges and offsetting positions. */
+  pasteClipboard: () => void;
+  /** Reset the canvas to the template + clear pricing/qty/notes overrides. */
+  resetToTemplate: () => void;
+  /** Update node.data.notes — surfaces in the cost sheet Notes column. */
+  updateNodeNotes: (id: string, notes: string) => void;
+  /** Set or clear the OP units override (rounded up to a positive int when present). */
+  setOpUnitsOverride: (id: string, units: number | undefined) => void;
+  /** Set or clear the editable per-month quantity override for a sheet row. */
+  setQtyOverride: (id: string, qty: number | undefined) => void;
 
   setSelectedNodeId: (id: string | null) => void;
 
@@ -174,6 +186,9 @@ export interface StrategyStore {
   getSplitValidations: () => ReturnType<typeof computeSplitSums>;
   getGrandTotals: () => { monthly: number; annual: number };
 }
+
+/** Module-level clipboard for shift-select + Cmd/Ctrl+C / Cmd/Ctrl+V. */
+let _clipboard: { nodes: StrategyNode[]; edges: StrategyEdge[] } | null = null;
 
 let idCounter = 0;
 export function genId(prefix: string) {
@@ -344,9 +359,22 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
         now - lastEdgePctEdit.at < EDGE_PCT_COALESCE_MS;
       if (!recent) pushHistoryInternal();
       lastEdgePctEdit = { edgeId, at: now };
-      const clamped = Math.max(0, Math.min(100, pct));
-      set((state) => ({
-        edges: state.edges.map((e) =>
+      const state = get();
+      const target = state.edges.find((e) => e.id === edgeId);
+      // Cap the new value so sibling edges out of the same parent never sum >100.
+      // Decimals are stripped here so the diagram stays integer-only.
+      let siblingSum = 0;
+      if (target) {
+        for (const e of state.edges) {
+          if (e.id !== edgeId && e.source === target.source) {
+            siblingSum += e.data?.pct ?? 0;
+          }
+        }
+      }
+      const headroom = Math.max(0, 100 - siblingSum);
+      const clamped = Math.max(0, Math.min(headroom, Math.round(pct)));
+      set((s) => ({
+        edges: s.edges.map((e) =>
           e.id === edgeId
             ? { ...e, data: { ...e.data, pct: clamped } }
             : e
@@ -364,6 +392,7 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
           source: "Source",
           pipelines: "Observability Pipelines",
           siem: "SIEM",
+          third_party: "3rd Party",
           ingest: "Ingest",
           flex_compute: "Flex Compute",
           flex: "Flex logs",
@@ -385,6 +414,9 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
         flexRetentionDays:
           kind === "flex" || kind === "flex_starter" ? 30 : undefined,
         tierLabel: kind === "index" ? "Standard" : undefined,
+        thirdPartyUnit: kind === "third_party" ? "GB" : undefined,
+        thirdPartyQty: kind === "third_party" ? 0 : undefined,
+        thirdPartyUnitCost: kind === "third_party" ? 0 : undefined,
       };
 
       const pos = position ?? {
@@ -695,6 +727,133 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
         sheetConflicts: [],
         selectedNodeId: null,
       });
+      set(rebuildDerived(get()));
+    },
+
+    copySelection: () => {
+      const s = get();
+      const selectedNodes = s.nodes.filter((n) => n.selected && n.type !== "group");
+      if (selectedNodes.length === 0) return;
+      const ids = new Set(selectedNodes.map((n) => n.id));
+      const internalEdges = s.edges.filter(
+        (e) => ids.has(e.source) && ids.has(e.target)
+      );
+      // Plain JSON clone — node/edge data is serializable.
+      _clipboard = {
+        nodes: JSON.parse(JSON.stringify(selectedNodes)) as StrategyNode[],
+        edges: JSON.parse(JSON.stringify(internalEdges)) as StrategyEdge[],
+      };
+    },
+
+    pasteClipboard: () => {
+      if (!_clipboard || _clipboard.nodes.length === 0) return;
+      pushHistoryInternal();
+      const idMap = new Map<string, string>();
+      for (const n of _clipboard.nodes) idMap.set(n.id, genId("n"));
+      const OFFSET = 40;
+      const newNodes: StrategyNode[] = _clipboard.nodes.map((n) => {
+        const newId = idMap.get(n.id)!;
+        const remappedParent = n.parentId ? idMap.get(n.parentId) : undefined;
+        // Top-level pastes get offset so they don't overlap; nested children keep
+        // their parent-relative position untouched.
+        const topLevel = !n.parentId;
+        return {
+          ...n,
+          id: newId,
+          parentId: remappedParent,
+          position: {
+            x: n.position.x + (topLevel ? OFFSET : 0),
+            y: n.position.y + (topLevel ? OFFSET : 0),
+          },
+          selected: true,
+        };
+      });
+      const newEdges: StrategyEdge[] = _clipboard.edges.map((e) => ({
+        ...e,
+        id: genId("e"),
+        source: idMap.get(e.source)!,
+        target: idMap.get(e.target)!,
+        selected: false,
+      }));
+      set((state) => {
+        const cleared = state.nodes.map((n) =>
+          n.selected ? { ...n, selected: false } : n
+        );
+        const merged = [...cleared, ...newNodes];
+        const enforced = enforceFlexComputeInvariant(
+          merged,
+          [...state.edges, ...newEdges],
+          genId
+        );
+        return { nodes: enforced.nodes, edges: enforced.edges };
+      });
+      set(rebuildDerived(get()));
+    },
+
+    resetToTemplate: () => {
+      pushHistoryInternal();
+      const g = createInitialGraph(get().layoutOrientation);
+      reseedIdCounter(g.nodes, g.edges);
+      set({
+        nodes: g.nodes,
+        edges: g.edges,
+        pricingOverrides: {},
+        sheetConflicts: [],
+        selectedNodeId: null,
+      });
+      set(rebuildDerived(get()));
+    },
+
+    updateNodeNotes: (id, notes) => {
+      pushHistoryInternal();
+      set((state) => ({
+        nodes: state.nodes.map((n) =>
+          n.id === id
+            ? { ...n, data: { ...n.data, notes } as StrategyNodeData }
+            : n
+        ),
+      }));
+      set(rebuildDerived(get()));
+    },
+
+    setOpUnitsOverride: (id, units) => {
+      pushHistoryInternal();
+      const next =
+        units === undefined || !Number.isFinite(units)
+          ? undefined
+          : Math.max(1, Math.ceil(units));
+      set((state) => ({
+        nodes: state.nodes.map((n) =>
+          n.id === id
+            ? {
+                ...n,
+                data: {
+                  ...n.data,
+                  opUnitsOverride: next,
+                } as StrategyNodeData,
+              }
+            : n
+        ),
+      }));
+      set(rebuildDerived(get()));
+    },
+
+    setQtyOverride: (id, qty) => {
+      pushHistoryInternal();
+      const next =
+        qty === undefined || !Number.isFinite(qty)
+          ? undefined
+          : Math.max(0, Math.round(qty));
+      set((state) => ({
+        nodes: state.nodes.map((n) =>
+          n.id === id
+            ? {
+                ...n,
+                data: { ...n.data, qtyOverride: next } as StrategyNodeData,
+              }
+            : n
+        ),
+      }));
       set(rebuildDerived(get()));
     },
 
