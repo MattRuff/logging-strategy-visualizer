@@ -92,8 +92,8 @@ body {
 .app__aside {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px;
+  gap: 10px;
+  padding: 10px 12px;
   background: var(--dd-surface);
   border-left: 1px solid var(--dd-border);
   box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.8);
@@ -677,8 +677,8 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px 24px;
-  padding: 10px 20px;
+  gap: 8px 18px;
+  padding: 6px 16px;
   background: linear-gradient(180deg, var(--dd-purple) 0%, var(--dd-purple-dark) 100%);
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
@@ -695,8 +695,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   border-radius: var(--dd-radius);
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.25);
@@ -723,7 +723,7 @@ body {
 }
 
 .toolbar__subtitle {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #fff;
 }
@@ -745,8 +745,8 @@ body {
 }
 
 .toolbar__inputs input {
-  width: 104px;
-  padding: 7px 10px;
+  width: 96px;
+  padding: 5px 8px;
   border-radius: var(--dd-radius);
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(255, 255, 255, 0.95);
@@ -769,7 +769,7 @@ body {
 }
 
 .toolbar__btn {
-  padding: 8px 14px;
+  padding: 6px 12px;
   border-radius: var(--dd-radius);
   font: inherit;
   font-size: 13px;
@@ -817,8 +817,8 @@ body {
 }
 
 .palette__section + .palette__section {
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid var(--dd-border);
 }
 
@@ -860,7 +860,7 @@ body {
   border-left: 3px solid var(--chip-accent, var(--dd-purple));
   background: var(--dd-bg);
   border-radius: var(--dd-radius);
-  padding: 8px 10px;
+  padding: 6px 9px;
   font-size: 12px;
   font-weight: 600;
   color: var(--chip-accent, var(--dd-purple));
@@ -897,7 +897,7 @@ body {
 .inspector {
   border: 1px solid var(--dd-border);
   border-radius: var(--dd-radius-lg);
-  padding: 14px;
+  padding: 10px 12px;
   background: var(--dd-surface);
   box-shadow: var(--dd-shadow);
 }
@@ -907,16 +907,16 @@ body {
   font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   color: var(--dd-text-muted);
 }
 
 .inspector__title--spaced {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .inspector__field select {
-  padding: 8px 10px;
+  padding: 5px 8px;
   border-radius: var(--dd-radius);
   border: 1px solid var(--dd-border);
   background: var(--dd-surface);
@@ -933,15 +933,15 @@ body {
 .inspector__field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   font-size: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   font-weight: 500;
   color: var(--dd-text);
 }
 
 .inspector__field input {
-  padding: 8px 10px;
+  padding: 5px 8px;
   border-radius: var(--dd-radius);
   border: 1px solid var(--dd-border);
   font: inherit;
@@ -970,14 +970,14 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 18px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--dd-border);
   background: var(--dd-bg-subtle);
 }
 
 .cost-sheet__header h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--dd-text);
   letter-spacing: -0.01em;
@@ -1091,7 +1091,7 @@ body {
 .sheet-table th,
 .sheet-table td {
   border: 1px solid var(--dd-border);
-  padding: 8px 10px;
+  padding: 5px 9px;
   vertical-align: middle;
 }
 
@@ -1872,12 +1872,12 @@ body {
 }
 
 .spend-bar {
-  padding: 10px 16px 12px;
+  padding: 6px 16px 8px;
   border-bottom: 1px solid var(--dd-border);
   background: var(--dd-surface);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .spend-bar__header {
@@ -1903,7 +1903,7 @@ body {
 .spend-bar__bar {
   display: flex;
   width: 100%;
-  height: 14px;
+  height: 12px;
   border-radius: var(--dd-radius);
   overflow: hidden;
   background: var(--dd-bg-subtle);
@@ -2035,7 +2035,7 @@ body {
 
 /* Source inputs panel (top of visualizer page). */
 .source-inputs {
-  padding: 10px 16px;
+  padding: 6px 14px 8px;
   border-bottom: 1px solid var(--dd-border);
   background: var(--dd-surface);
 }
@@ -2044,11 +2044,11 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .source-inputs__title {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
 }
 .source-inputs__reset {
@@ -2080,8 +2080,8 @@ body {
   color: var(--dd-text-muted);
 }
 .source-inputs__field input {
-  width: 160px;
-  padding: 4px 6px;
+  width: 140px;
+  padding: 3px 6px;
   border: 1px solid var(--dd-border);
   border-radius: var(--dd-radius);
   font-size: 13px;
