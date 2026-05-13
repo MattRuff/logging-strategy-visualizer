@@ -1992,3 +1992,62 @@ body {
 .rotate-toggle__btn--auto {
   color: var(--dd-purple);
 }
+
+/* Source inputs panel (top of visualizer page). */
+.source-inputs {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--dd-border);
+  background: var(--dd-surface);
+}
+.source-inputs__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.source-inputs__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.source-inputs__reset {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--dd-radius);
+  border: 1px solid var(--dd-border);
+  background: var(--dd-bg-subtle);
+  cursor: pointer;
+}
+.source-inputs__reset:hover {
+  background: var(--dd-border);
+}
+.source-inputs__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.source-inputs__row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.source-inputs__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--dd-text-muted);
+}
+.source-inputs__field input {
+  width: 160px;
+  padding: 4px 6px;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  font-size: 13px;
+}
+.source-inputs__empty {
+  font-size: 12px;
+  color: var(--dd-text-muted);
+  margin: 0;
+}
