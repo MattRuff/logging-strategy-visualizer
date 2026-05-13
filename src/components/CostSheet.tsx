@@ -19,6 +19,7 @@ const helper = createColumnHelper<LineItem>();
 const TYPE_BADGE_CLASS: Record<LineItem["displayType"], string> = {
   OP: "sheet-badge--op",
   SIEM: "sheet-badge--siem",
+  "Third Party": "sheet-badge--third-party",
   Ingest: "sheet-badge--ingest",
   "Flex Storage": "sheet-badge--flex-storage",
   "Flex Compute": "sheet-badge--flex-compute",

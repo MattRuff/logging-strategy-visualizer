@@ -392,6 +392,7 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
           source: "Source",
           pipelines: "Observability Pipelines",
           siem: "SIEM",
+          third_party: "3rd Party",
           ingest: "Ingest",
           flex_compute: "Flex Compute",
           flex: "Flex logs",
@@ -413,6 +414,9 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
         flexRetentionDays:
           kind === "flex" || kind === "flex_starter" ? 30 : undefined,
         tierLabel: kind === "index" ? "Standard" : undefined,
+        thirdPartyUnit: kind === "third_party" ? "GB" : undefined,
+        thirdPartyQty: kind === "third_party" ? 0 : undefined,
+        thirdPartyUnitCost: kind === "third_party" ? 0 : undefined,
       };
 
       const pos = position ?? {

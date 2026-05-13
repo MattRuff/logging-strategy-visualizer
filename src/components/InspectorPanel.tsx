@@ -86,6 +86,57 @@ export function InspectorPanel() {
               </select>
             </label>
           ) : null}
+          {node.data.kind === "third_party" ? (
+            <>
+              <label className="inspector__field">
+                Unit
+                <select
+                  value={node.data.thirdPartyUnit ?? "GB"}
+                  onChange={(e) =>
+                    updateNodeData(node.id, {
+                      thirdPartyUnit: e.target.value as "GB" | "MM",
+                    })
+                  }
+                >
+                  <option value="GB">GB / month</option>
+                  <option value="MM">Million log lines / month</option>
+                </select>
+              </label>
+              <label className="inspector__field">
+                Quantity / month (
+                {node.data.thirdPartyUnit === "MM" ? "MM lines" : "GB"})
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={node.data.thirdPartyQty ?? 0}
+                  onChange={(e) =>
+                    updateNodeData(node.id, {
+                      thirdPartyQty: Math.max(0, Number(e.target.value) || 0),
+                    })
+                  }
+                />
+              </label>
+              <label className="inspector__field">
+                Unit cost ($ per{" "}
+                {node.data.thirdPartyUnit === "MM" ? "MM lines" : "GB"})
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={node.data.thirdPartyUnitCost ?? 0}
+                  onChange={(e) =>
+                    updateNodeData(node.id, {
+                      thirdPartyUnitCost: Math.max(
+                        0,
+                        Number(e.target.value) || 0
+                      ),
+                    })
+                  }
+                />
+              </label>
+            </>
+          ) : null}
           {node.data.kind === "source" ? (
             <>
               <label className="inspector__field">

@@ -5,6 +5,7 @@ export type NodeKind =
   | "source"
   | "pipelines"
   | "siem"
+  | "third_party"
   | "ingest"
   | "flex_compute"
   | "flex"
@@ -35,6 +36,12 @@ export interface StrategyNodeData extends Record<string, unknown> {
   opUnitsOverride?: number;
   /** Editable override for monthly quantity on the cost sheet. */
   qtyOverride?: number;
+  /** Third-party node: which unit the user types into (and which we cost on). */
+  thirdPartyUnit?: "GB" | "MM";
+  /** Third-party node: monthly quantity in the chosen unit. */
+  thirdPartyQty?: number;
+  /** Third-party node: $ per unit (per GB or per million log lines). */
+  thirdPartyUnitCost?: number;
 }
 
 export type StrategyNode = Node<StrategyNodeData>;
@@ -48,6 +55,7 @@ export type SheetLineKind = "node" | "flex_aggregate" | "flex_compute";
 export type SheetDisplayType =
   | "OP"
   | "SIEM"
+  | "Third Party"
   | "Ingest"
   | "Flex Storage"
   | "Flex Compute"

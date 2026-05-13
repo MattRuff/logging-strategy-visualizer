@@ -338,6 +338,27 @@ export function buildSheetLineItems(p: SheetLineItemsInput): LineItem[] {
       continue;
     }
 
+    if (kind === "third_party") {
+      const unitLabel = node.data.thirdPartyUnit ?? "GB";
+      const q = Math.max(0, node.data.thirdPartyQty ?? 0);
+      const unit = Math.max(0, node.data.thirdPartyUnitCost ?? 0);
+      const monthly = Math.round(q * unit * 100) / 100;
+      rows.push({
+        ...base,
+        nodeLabel: node.data.label,
+        displayType: "Third Party",
+        skuKey: "third_party",
+        description: "3rd Party",
+        quantityPerMonth: q,
+        unitPrice: unit,
+        monthly,
+        annual: annual(monthly),
+        notes: node.data.notes,
+        millionLinesNote: unitLabel === "MM" ? "M lines/mo · $/M" : "GB/mo · $/GB",
+      });
+      continue;
+    }
+
     if (kind === "flex_starter") {
       const days = nearestFlexRetentionDays(
         node.data.flexRetentionDays ?? 30
