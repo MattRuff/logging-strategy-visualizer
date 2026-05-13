@@ -97,7 +97,29 @@ body {
   background: var(--dd-surface);
   border-left: 1px solid var(--dd-border);
   box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.8);
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app__aside-hint {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--dd-text-muted);
+  background: var(--dd-purple-tint);
+  border: 1px solid color-mix(in srgb, var(--dd-purple) 25%, transparent);
+  border-radius: var(--dd-radius);
+  padding: 8px 10px;
+}
+
+.app__aside > .inspector {
+  flex: 0 0 auto;
+}
+
+.app__aside-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .flow-canvas-wrap {
