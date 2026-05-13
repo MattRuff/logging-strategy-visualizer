@@ -1,16 +1,17 @@
 // POST /api/admins  { email }
 // Admin-only. Idempotently appends an email to the admins list.
 
-import { getCallerSub, getCallerEmail } from "../shared/auth.mjs";
+import { getCallerSub } from "../shared/auth.mjs";
 import { ok, forbidden, badRequest, serverError, parseJsonBody } from "../shared/http.mjs";
 import { makeLogger } from "../shared/log.mjs";
 import { addAdmin, isAdminEmail } from "../shared/admins.mjs";
+import { resolveCallerEmail } from "../shared/userEmail.mjs";
 
 export const handler = async (event, context) => {
   const log = makeLogger(event, context);
   try {
     getCallerSub(event);
-    const callerEmail = getCallerEmail(event);
+    const callerEmail = await resolveCallerEmail(event);
     if (!(await isAdminEmail(callerEmail))) {
       log.warn("addAdmin: forbidden", { callerEmail });
       return forbidden("Only admins can promote other users");
