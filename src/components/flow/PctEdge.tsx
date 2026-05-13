@@ -4,7 +4,7 @@ import {
   getSmoothStepPath,
   type EdgeProps,
 } from "@xyflow/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { NodeKind } from "@/model/types";
 import { useStrategyStore } from "@/state/strategyStore";
 
@@ -136,6 +136,15 @@ function PctInput({
 }) {
   const displayed = Number.isFinite(pct) ? String(pct) : "0";
   const [draft, setDraft] = useState(displayed);
+  const lastPctRef = useRef(pct);
+  // Re-sync draft when pct changes externally (e.g. a sibling edge edit recomputed
+  // this edge's share). Without this the input stays stuck on the first-mount value.
+  useEffect(() => {
+    if (pct !== lastPctRef.current) {
+      lastPctRef.current = pct;
+      setDraft(Number.isFinite(pct) ? String(pct) : "0");
+    }
+  }, [pct]);
   const value = draft;
   return (
     <label className="pct-edge-label__inner">
