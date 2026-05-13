@@ -164,6 +164,7 @@ export function Landing() {
           </svg>
           Settings — pricing & how it works
         </Link>
+        <span className="landing__credit">Built by Matt Ruyffelaert — Sales Engineering</span>
       </footer>
     </div>
   );
