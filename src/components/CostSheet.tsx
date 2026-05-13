@@ -67,28 +67,30 @@ export function CostSheet() {
         header: "% of total",
         cell: (ctx) => {
           const row = ctx.row.original;
+          const displayed =
+            row.pctOfTotal != null ? Math.ceil(row.pctOfTotal) : null;
           if (row.routeNodeId == null) {
             if (
               row.lineKind === "flex_aggregate" &&
-              row.pctOfTotal != null
+              displayed != null
             ) {
               return (
                 <span className="sheet-num sheet-num--readonly">
-                  {row.pctOfTotal}%
+                  {displayed}%
                 </span>
               );
             }
             return <span className="sheet-muted">—</span>;
           }
-          const v = row.pctOfTotal;
           return (
             <input
               className="sheet-input sheet-input--purple"
               type="number"
-              defaultValue={v ?? ""}
-              key={`${row.id}-${v}`}
+              step={1}
+              defaultValue={displayed ?? ""}
+              key={`${row.id}-${displayed}`}
               onBlur={(e) => {
-                const n = Number(e.target.value);
+                const n = Math.round(Number(e.target.value));
                 if (!Number.isFinite(n)) return;
                 applyRoutePctFromSheet(row.routeNodeId!, n);
               }}
