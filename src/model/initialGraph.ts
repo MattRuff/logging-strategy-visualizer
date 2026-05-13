@@ -52,25 +52,17 @@ const STAGES: { id: string; pos: StagePos; data: StrategyNode["data"] }[] = [
     pos: { col: 3, row: 0 },
     data: {
       kind: "index",
-      label: "3-Day Index (Warning+)",
+      label: "Standard Logs (3d)",
       retentionDays: 3,
       tierLabel: "Standard",
     },
   },
   {
-    id: "n_flex_compute",
+    id: "n_flex",
     pos: { col: 3, row: 2 },
     data: {
-      kind: "flex_compute",
-      label: "Flex Compute",
-    },
-  },
-  {
-    id: "n_flex",
-    pos: { col: 4, row: 2 },
-    data: {
       kind: "flex",
-      label: "Datadog Flex Logs",
+      label: "Flex Logs",
       flexRetentionDays: 30,
     },
   },
@@ -154,18 +146,11 @@ export function createInitialGraph(
       data: { pct: 20 },
     },
     {
-      id: "e_ingest_flex_compute",
+      id: "e_ingest_flex",
       source: "n_ingest",
-      target: "n_flex_compute",
-      type: "pct",
-      data: { pct: 80 },
-    },
-    {
-      id: "e_flex_compute_flex",
-      source: "n_flex_compute",
       target: "n_flex",
       type: "pct",
-      data: { pct: 100 },
+      data: { pct: 80 },
     },
   ];
 
