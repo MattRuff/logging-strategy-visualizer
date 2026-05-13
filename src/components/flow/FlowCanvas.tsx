@@ -39,6 +39,8 @@ function FlowInner() {
     (s) => s.setLayoutOrientation
   );
   const runAutoLayout = useStrategyStore((s) => s.autoLayout);
+  const copySelection = useStrategyStore((s) => s.copySelection);
+  const pasteClipboard = useStrategyStore((s) => s.pasteClipboard);
   const [minimapOpen, setMinimapOpen] = useState(true);
 
   // Group draw mode — store-managed so the Palette button can toggle it too.
@@ -103,6 +105,34 @@ function FlowInner() {
       }),
     [nodes, layoutOrientation]
   );
+
+  // Cmd/Ctrl+C copies selected nodes; Cmd/Ctrl+V pastes them with a 40px offset.
+  // Skip when focus is in an input/textarea so we don't hijack normal text editing.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey;
+      if (!meta) return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t &&
+        (t.tagName === "INPUT" ||
+          t.tagName === "TEXTAREA" ||
+          t.tagName === "SELECT" ||
+          t.isContentEditable)
+      ) {
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (key === "c") {
+        copySelection();
+      } else if (key === "v") {
+        e.preventDefault();
+        pasteClipboard();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [copySelection, pasteClipboard]);
 
   // ESC cancels group mode.
   useEffect(() => {
@@ -348,7 +378,7 @@ function FlowInner() {
         <Panel position="top-left" className="flow-hint">
           {groupMode
             ? "Drag a rectangle around the nodes you want to group. Esc to cancel."
-            : "Drag types from the palette onto the canvas. Connect handles; edit % on edges."}
+            : "Drag types from the palette onto the canvas. Shift+drag to multi-select; ⌘/Ctrl+C / ⌘/Ctrl+V to copy & paste."}
         </Panel>
       </ReactFlow>
 
