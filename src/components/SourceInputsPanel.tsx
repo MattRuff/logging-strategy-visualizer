@@ -52,9 +52,13 @@ export function SourceInputsPanel() {
                         0,
                         Math.round(Number(e.target.value))
                       );
-                      updateNodeData(node.id, {
+                      const patch: Partial<typeof node.data> = {
                         totalTbPerMonth: nextGb / GB_PER_TB,
-                      });
+                      };
+                      if (!node.data.millionLinesManuallySet) {
+                        patch.millionLinesPerMonth = nextGb;
+                      }
+                      updateNodeData(node.id, patch);
                     }}
                   />
                 </label>
@@ -71,6 +75,7 @@ export function SourceInputsPanel() {
                           0,
                           Math.round(Number(e.target.value))
                         ),
+                        millionLinesManuallySet: true,
                       })
                     }
                   />

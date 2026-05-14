@@ -22,6 +22,8 @@ export interface StrategyNodeData extends Record<string, unknown> {
   totalTbPerMonth?: number;
   /** Source nodes: million log lines per month */
   millionLinesPerMonth?: number;
+  /** Source nodes: true once the user has manually edited millionLinesPerMonth, so it no longer auto-tracks GB at the 1 GB ↔ 1 M lines default. */
+  millionLinesManuallySet?: boolean;
   /** Indexed logs: hot retention in days */
   retentionDays?: number;
   /** e.g. "Standard 3-day" */
