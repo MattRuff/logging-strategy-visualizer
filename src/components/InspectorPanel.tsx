@@ -209,14 +209,19 @@ export function InspectorPanel() {
                   value={
                     node.data.totalTbPerMonth ?? DEFAULT_TOTAL_TB_PER_MONTH
                   }
-                  onChange={(e) =>
-                    updateNodeData(node.id, {
-                      totalTbPerMonth: Math.max(
-                        0,
-                        Math.round(Number(e.target.value))
-                      ),
-                    })
-                  }
+                  onChange={(e) => {
+                    const nextTb = Math.max(
+                      0,
+                      Math.round(Number(e.target.value))
+                    );
+                    const patch: Partial<typeof node.data> = {
+                      totalTbPerMonth: nextTb,
+                    };
+                    if (!node.data.millionLinesManuallySet) {
+                      patch.millionLinesPerMonth = nextTb * 1000;
+                    }
+                    updateNodeData(node.id, patch);
+                  }}
                 />
               </label>
               <label className="inspector__field">
@@ -234,7 +239,10 @@ export function InspectorPanel() {
                       .replace(/[^0-9.]/g, "");
                     const n = raw === "" || raw === "." ? 0 : Number(raw);
                     if (Number.isFinite(n) && n >= 0) {
-                      updateNodeData(node.id, { millionLinesPerMonth: n });
+                      updateNodeData(node.id, {
+                        millionLinesPerMonth: n,
+                        millionLinesManuallySet: true,
+                      });
                     }
                   }}
                 />
