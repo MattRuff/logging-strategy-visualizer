@@ -1,4 +1,5 @@
 import { runtime } from "@/config/runtime";
+import type { PricingKey, SiemTier } from "@/model/pricingCatalog";
 
 export interface WorkloadSummary {
   id: string;
@@ -129,6 +130,13 @@ export const workloadApi = {
       method: "POST",
       body: JSON.stringify({ email }),
     });
+  },
+  getPricing(accessToken: string) {
+    return request<{
+      pricing: Record<PricingKey, number>;
+      // Server sends maxTb as null for the top tier (JSON has no Infinity).
+      siemTiers: Array<Omit<SiemTier, "maxTb"> & { maxTb: number | null }>;
+    }>(accessToken, "/pricing");
   },
   setTemplatePin(accessToken: string, id: string, pinned: boolean) {
     return request<{ id: string; isOfficial: boolean }>(
