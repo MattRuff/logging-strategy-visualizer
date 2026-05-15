@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "@/auth/AuthProvider";
+import { RequireDatadogUser } from "@/auth/RequireDatadogUser";
 import { AdminPage } from "@/pages/AdminPage";
 import { AuthCallback } from "@/pages/AuthCallback";
 import { Archive } from "@/pages/Archive";
@@ -16,17 +17,30 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/visualizer" element={<VisualizerRoute />} />
-        <Route path="/pricing" element={<PricingRoute />} />
-        <Route path="/hybrid" element={<HybridRoute />} />
-        <Route path="/workloads" element={<MyWorkloads />} />
-        <Route path="/templates" element={<Archive />} />
-        <Route path="/archive" element={<Navigate to="/templates" replace />} />
-        <Route path="/admin" element={<AdminPage />} />
+        {/* /auth/callback must run unguarded — it completes the OIDC handshake
+            that turns the redirect code into a session. /auth/resend must also
+            be reachable while signed-out so users can request a new code. */}
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/auth/resend" element={<ResendVerification />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+
+        <Route
+          path="*"
+          element={
+            <RequireDatadogUser>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/visualizer" element={<VisualizerRoute />} />
+                <Route path="/pricing" element={<PricingRoute />} />
+                <Route path="/hybrid" element={<HybridRoute />} />
+                <Route path="/workloads" element={<MyWorkloads />} />
+                <Route path="/templates" element={<Archive />} />
+                <Route path="/archive" element={<Navigate to="/templates" replace />} />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </RequireDatadogUser>
+          }
+        />
       </Routes>
     </AuthProvider>
   );

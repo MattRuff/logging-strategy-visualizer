@@ -86,3 +86,9 @@ variable "datadog_node_layer_arn" {
   description = "Full ARN of the Datadog-Node22-x Lambda layer (default: us-east-1, version 137)."
   default     = "arn:aws:lambda:us-east-1:464622532012:layer:Datadog-Node22-x:137"
 }
+
+variable "allowed_email_domains" {
+  type        = list(string)
+  description = "Email domains permitted to sign up and use the app. Enforced by the Cognito PreSignUp Lambda and by every API handler."
+  default     = ["datadoghq.com"]
+}

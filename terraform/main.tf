@@ -82,6 +82,10 @@ resource "aws_cognito_user_pool" "main" {
   username_attributes      = ["email"]
   auto_verified_attributes = ["email"]
 
+  lambda_config {
+    pre_sign_up = aws_lambda_function.pre_sign_up.arn
+  }
+
   account_recovery_setting {
     recovery_mechanism {
       name     = "verified_email"
@@ -197,9 +201,9 @@ data "aws_iam_policy_document" "lambda_ddb" {
   }
 
   statement {
-    sid     = "CognitoAdminGetUser"
-    effect  = "Allow"
-    actions = ["cognito-idp:AdminGetUser"]
+    sid       = "CognitoAdminGetUser"
+    effect    = "Allow"
+    actions   = ["cognito-idp:AdminGetUser"]
     resources = [aws_cognito_user_pool.main.arn]
   }
 }
@@ -295,6 +299,7 @@ resource "aws_lambda_function" "fn" {
       DD_TRACE_ENABLED           = "true"
       DD_SERVERLESS_LOGS_ENABLED = "true"
       DD_MERGE_XRAY_TRACES       = "true"
+      ALLOWED_EMAIL_DOMAINS      = join(",", var.allowed_email_domains)
     }
   }
 
@@ -303,6 +308,45 @@ resource "aws_lambda_function" "fn" {
     aws_secretsmanager_secret_version.datadog_api_key,
     aws_iam_role_policy.lambda_dd_secret,
   ]
+}
+
+# -------------------------------------------------------------------
+# Cognito PreSignUp trigger — rejects sign-ups whose email isn't on the
+# allowed-domain list. Same zip as the API handlers; separate function
+# because Cognito (not API Gateway) invokes it and the handler lives at
+# a different path.
+# -------------------------------------------------------------------
+
+resource "aws_cloudwatch_log_group" "pre_sign_up" {
+  name              = "/aws/lambda/${var.project_name}-preSignUp"
+  retention_in_days = var.lambda_log_retention_days
+}
+
+resource "aws_lambda_function" "pre_sign_up" {
+  function_name    = "${var.project_name}-preSignUp"
+  role             = aws_iam_role.lambda.arn
+  handler          = "preSignUp/index.handler"
+  runtime          = "nodejs22.x"
+  filename         = data.archive_file.lambda_bundle.output_path
+  source_code_hash = data.archive_file.lambda_bundle.output_base64sha256
+  timeout          = 5
+  memory_size      = 128
+
+  environment {
+    variables = {
+      ALLOWED_EMAIL_DOMAINS = join(",", var.allowed_email_domains)
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.pre_sign_up]
+}
+
+resource "aws_lambda_permission" "cognito_pre_sign_up" {
+  statement_id  = "AllowCognitoInvokePreSignUp"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.pre_sign_up.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.main.arn
 }
 
 # -------------------------------------------------------------------

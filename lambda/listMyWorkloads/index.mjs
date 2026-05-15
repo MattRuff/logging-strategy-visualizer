@@ -3,7 +3,7 @@
 
 import { QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE, userPk } from "../shared/ddb.mjs";
-import { getCallerSub } from "../shared/auth.mjs";
+import { requireDatadogUser } from "../shared/userEmail.mjs";
 import { ok, serverError } from "../shared/http.mjs";
 import { makeLogger } from "../shared/log.mjs";
 
@@ -11,7 +11,7 @@ export const handler = async (event, context) => {
   const log = makeLogger(event, context);
   log.info("listMyWorkloads: request received");
   try {
-    const sub = getCallerSub(event);
+    const { sub } = await requireDatadogUser(event);
 
     const res = await ddb.send(new QueryCommand({
       TableName: TABLE,

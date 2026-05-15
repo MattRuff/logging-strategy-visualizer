@@ -3,7 +3,7 @@
 
 import { QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE, ARCHIVE_PK } from "../shared/ddb.mjs";
-import { getCallerSub } from "../shared/auth.mjs";
+import { requireDatadogUser } from "../shared/userEmail.mjs";
 import { ok, serverError } from "../shared/http.mjs";
 import { makeLogger } from "../shared/log.mjs";
 
@@ -11,8 +11,8 @@ export const handler = async (event, context) => {
   const log = makeLogger(event, context);
   log.info("listArchive: request received");
   try {
-    // Require a valid token (enforced by the JWT authorizer too) but don't filter by sub.
-    getCallerSub(event);
+    // Require a valid Datadog user but don't filter by sub.
+    await requireDatadogUser(event);
 
     const res = await ddb.send(new QueryCommand({
       TableName: TABLE,
