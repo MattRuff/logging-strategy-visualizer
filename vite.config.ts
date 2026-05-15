@@ -13,6 +13,9 @@ export default defineConfig({
     port: 5173,
   },
   build: {
-    sourcemap: true,
+    // 'hidden' still emits .map files (deploy.sh uploads them to Datadog for
+    // RUM symbolication) but omits the //# sourceMappingURL= comment from the
+    // JS, so browsers don't request maps that aren't served from S3.
+    sourcemap: "hidden",
   },
 });

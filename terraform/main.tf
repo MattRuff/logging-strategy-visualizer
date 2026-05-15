@@ -13,6 +13,7 @@ locals {
     listAdmins      = { handler = "listAdmins/index.handler", method = "GET", route = "/api/admins" }
     addAdmin        = { handler = "addAdmin/index.handler", method = "POST", route = "/api/admins" }
     setTemplatePin  = { handler = "setTemplatePin/index.handler", method = "POST", route = "/api/archive/{id}/pin" }
+    getPricing      = { handler = "getPricing/index.handler", method = "GET", route = "/api/pricing" }
   }
 }
 

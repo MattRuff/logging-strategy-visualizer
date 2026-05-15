@@ -20,6 +20,7 @@ import {
   primarySourceId,
 } from "@/model/graphMath";
 import {
+  isPricingCatalogLoaded,
   pickFlexComputeTier,
   type FlexComputeTier,
   type PricingKey,
@@ -63,6 +64,12 @@ function rebuildDerived(
   const nodeVolumes = computeNodeVolumes(s.nodes, s.edges);
   const events = flexEventsFromVolumes(s.nodes, nodeVolumes);
   const flexComputeTier = pickFlexComputeTier(events);
+  // Pricing catalog is fetched after auth (see RequireDatadogUser). The store
+  // factory runs at module-init, before the fetch — skip the cost computation
+  // until the catalog is hydrated. recomputeDerived() runs post-hydration.
+  if (!isPricingCatalogLoaded()) {
+    return { sheetLineItems: [], nodeVolumes, flexComputeTier };
+  }
   const sheetLineItems = buildSheetLineItems({
     nodes: s.nodes,
     edges: s.edges,
@@ -161,6 +168,9 @@ export interface StrategyStore {
 
   setPricingOverride: (key: PricingKey, value: number | undefined) => void;
   resetPricingDefaults: () => void;
+  /** Recompute derived state (sheet line items, etc.). Called after the
+   *  pricing catalog finishes hydrating from /api/pricing. */
+  recomputeDerived: () => void;
   setLayoutOrientation: (o: LayoutOrientation) => void;
   setTemplateId: (id: string | null) => void;
   autoLayout: () => void;
@@ -631,6 +641,10 @@ export const useStrategyStore = create<StrategyStore>((set, get) => {
     resetPricingDefaults: () => {
       pushHistoryInternal();
       set({ pricingOverrides: {} });
+      set(rebuildDerived(get()));
+    },
+
+    recomputeDerived: () => {
       set(rebuildDerived(get()));
     },
 

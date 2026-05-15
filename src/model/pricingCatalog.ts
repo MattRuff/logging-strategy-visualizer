@@ -1,6 +1,11 @@
 /**
- * Default list prices — align with Datadog Druids (internal docs) when updating.
- * See DRUIDS_SOURCES.md in repo root.
+ * Pricing catalog — values are fetched from GET /api/pricing at app boot and
+ * installed via setPricingCatalog(). The static bundle ships zero numbers so
+ * an unauthenticated viewer of the JS can't read list prices.
+ *
+ * Helpers like resolvePrice / siemTierForTb assume the catalog has been
+ * hydrated; calling them before hydration throws. RequireDatadogUser blocks
+ * route rendering until hydration completes.
  */
 
 export type PricingKey =
@@ -28,69 +33,72 @@ export type PricingKey =
   | "siem_t9"
   | "siem_t10";
 
-export const DEFAULT_PRICING: Record<PricingKey, number> = {
-  op_monthly_per_op: 1950,
-  log_ingest_per_million: 0.1,
-  std_3d: 1.06,
-  std_7d: 1.27,
-  std_15d: 1.7,
-  std_30d: 2.5,
-  flex_bucket_per_30d: 0.05,
-  flex_compute_xs: 9000,
-  flex_compute_sm: 31500,
-  flex_compute_md: 67500,
-  flex_compute_lg: 135000,
-  flex_starter_per_million_30d: 0.6,
-  archive_search_per_gb: 0.05,
-  // SIEM volume tiers ($/GB scanned, by total TB/mo)
-  siem_t1: 5.0,
-  siem_t2: 3.37,
-  siem_t3: 2.81,
-  siem_t4: 2.34,
-  siem_t5: 1.95,
-  siem_t6: 1.62,
-  siem_t7: 1.4,
-  siem_t8: 1.22,
-  siem_t9: 1.08,
-  siem_t10: 0.94,
-};
+export interface SiemTier {
+  maxTb: number; // POSITIVE_INFINITY for the top tier
+  key: PricingKey;
+  label: string;
+}
+
+export interface PricingCatalog {
+  pricing: Record<PricingKey, number>;
+  siemTiers: ReadonlyArray<SiemTier>;
+}
 
 /**
- * GB per TB used for the SIEM volume → $ conversion. Pricing tables typically
- * use decimal TB (1 TB = 1000 GB) rather than binary; keep this constant central
- * so a future change to binary is one edit.
+ * GB per TB used for the SIEM volume → $ conversion. Not a price.
  */
 export const GB_PER_TB = 1000;
 
-/** SIEM volume tiers — pick the row whose maxTb >= tbMo. Last row applies above 100TB. */
-export const SIEM_TIERS: ReadonlyArray<{
-  maxTb: number;
-  key: PricingKey;
-  label: string;
-}> = [
-  { maxTb: 1.2, key: "siem_t1", label: "<1.2 TB" },
-  { maxTb: 2.9, key: "siem_t2", label: "1.2–2.9 TB" },
-  { maxTb: 5.9, key: "siem_t3", label: "3–5.9 TB" },
-  { maxTb: 9.9, key: "siem_t4", label: "6–9.9 TB" },
-  { maxTb: 14.9, key: "siem_t5", label: "10–14.9 TB" },
-  { maxTb: 22.49, key: "siem_t6", label: "15–22.49 TB" },
-  { maxTb: 29.9, key: "siem_t7", label: "22.5–29.9 TB" },
-  { maxTb: 59.9, key: "siem_t8", label: "30–59.9 TB" },
-  { maxTb: 99.9, key: "siem_t9", label: "60–99.9 TB" },
-  { maxTb: Number.POSITIVE_INFINITY, key: "siem_t10", label: "100+ TB" },
-];
+let _catalog: PricingCatalog | null = null;
+
+export function setPricingCatalog(c: PricingCatalog): void {
+  _catalog = {
+    pricing: { ...c.pricing },
+    siemTiers: c.siemTiers.map((t) => ({
+      maxTb: Number.isFinite(t.maxTb) ? t.maxTb : Number.POSITIVE_INFINITY,
+      key: t.key,
+      label: t.label,
+    })),
+  };
+}
+
+export function isPricingCatalogLoaded(): boolean {
+  return _catalog !== null;
+}
+
+function requireCatalog(): PricingCatalog {
+  if (!_catalog) {
+    throw new Error(
+      "Pricing catalog not loaded. RequireDatadogUser should hydrate it before any route renders."
+    );
+  }
+  return _catalog;
+}
+
+export function getDefaultPricing(): Record<PricingKey, number> {
+  return requireCatalog().pricing;
+}
+
+export function getSiemTiers(): ReadonlyArray<SiemTier> {
+  return requireCatalog().siemTiers;
+}
 
 /** Pick the SIEM tier covering the given TB/mo. */
-export function siemTierForTb(tbMo: number): (typeof SIEM_TIERS)[number] {
-  for (const t of SIEM_TIERS) {
+export function siemTierForTb(tbMo: number): SiemTier {
+  const tiers = getSiemTiers();
+  for (const t of tiers) {
     if (tbMo <= t.maxTb) return t;
   }
-  return SIEM_TIERS[SIEM_TIERS.length - 1];
+  return tiers[tiers.length - 1];
 }
 
 export type FlexComputeTier = "xs" | "sm" | "md" | "lg";
 
-/** Datadog Flex Logs compute-tier capacity in events scanned per month (lower–upper bounds). */
+/**
+ * Flex Logs compute-tier capacity in events scanned per month. These bounds are
+ * publicly documented technical capacities (not list prices), so they stay
+ * client-side.
+ */
 export const FLEX_TIER_CAPACITIES: Record<
   FlexComputeTier,
   { lower: number; upper: number }
@@ -138,5 +146,5 @@ export function resolvePrice(
 ): number {
   const v = overrides[key];
   if (v != null && Number.isFinite(v)) return v;
-  return DEFAULT_PRICING[key];
+  return requireCatalog().pricing[key];
 }

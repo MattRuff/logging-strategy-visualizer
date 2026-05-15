@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  DEFAULT_PRICING,
   FLEX_TIER_CAPACITIES,
-  SIEM_TIERS,
+  getDefaultPricing,
+  getSiemTiers,
   type PricingKey,
 } from "@/model/pricingCatalog";
 import { useStrategyStore } from "@/state/strategyStore";
@@ -112,19 +112,6 @@ const PRICE_ROWS: PriceRow[] = [
   },
 ];
 
-const SIEM_DESCRIPTIONS: Record<string, string> = {
-  siem_t1: "<1.2 TB/mo",
-  siem_t2: "1.2 – 2.9 TB/mo",
-  siem_t3: "3 – 5.9 TB/mo",
-  siem_t4: "6 – 9.9 TB/mo",
-  siem_t5: "10 – 14.9 TB/mo",
-  siem_t6: "15 – 22.49 TB/mo",
-  siem_t7: "22.5 – 29.9 TB/mo",
-  siem_t8: "30 – 59.9 TB/mo",
-  siem_t9: "60 – 99.9 TB/mo",
-  siem_t10: "100 – 249.9 TB/mo",
-};
-
 export function AdminPage() {
   const overrides = useStrategyStore((s) => s.pricingOverrides);
   const setOverride = useStrategyStore((s) => s.setPricingOverride);
@@ -163,8 +150,11 @@ export function AdminPage() {
     }
   };
 
+  const defaultPricing = getDefaultPricing();
+  const siemTiers = getSiemTiers();
+
   const renderRow = (key: PricingKey, descr: string, unit: string) => {
-    const def = DEFAULT_PRICING[key];
+    const def = defaultPricing[key];
     const ov = overrides[key];
     const value = ov ?? def;
     const overridden = ov != null && ov !== def;
@@ -274,12 +264,8 @@ export function AdminPage() {
               </tr>
             </thead>
             <tbody>
-              {SIEM_TIERS.map((t) =>
-                renderRow(
-                  t.key,
-                  SIEM_DESCRIPTIONS[t.key] ?? t.label,
-                  "$/GB"
-                )
+              {siemTiers.map((t) =>
+                renderRow(t.key, t.label, "$/GB")
               )}
             </tbody>
           </table>
@@ -333,7 +319,8 @@ export function AdminPage() {
             <h3>Pipelines (OP)</h3>
             <p>
               <code>OPs = ceil(TB/day reaching pipelines)</code>, monthly ={" "}
-              <code>OPs × $1,950</code>. One OP covers up to 1 TB/day, so a
+              <code>OPs × {currency.format(defaultPricing.op_monthly_per_op)}</code>.
+              One OP covers up to 1 TB/day, so a
               graph with 30 TB/mo over a single source runs at ≈ 1 OP.
             </p>
           </article>
@@ -374,7 +361,7 @@ export function AdminPage() {
             <h3>Flex Logs Starter</h3>
             <p>
               Same shape as Flex Storage, but priced at{" "}
-              <code>{currency.format(DEFAULT_PRICING.flex_starter_per_million_30d)}</code>
+              <code>{currency.format(defaultPricing.flex_starter_per_million_30d)}</code>
               /M lines/30d with no compute fee. Behaves as its own leaf — no
               flex_compute parent is auto-attached.
             </p>
@@ -383,8 +370,8 @@ export function AdminPage() {
             <h3>SIEM</h3>
             <p>
               Pre-ingest node priced by GB. The total TB/mo reaching the
-              node selects a tier (e.g. 6–9.9 TB ⇒ $2.34/GB), then{" "}
-              <code>monthly = TB × 1000 × tierRate</code>. Adding more
+              node selects a tier; <code>monthly = TB × 1000 × tierRate</code>.
+              Tiers and their rates are shown in the table above. Adding more
               sources or upping a percentage can drop you into a cheaper
               tier automatically.
             </p>
@@ -402,7 +389,7 @@ export function AdminPage() {
               A node downstream of an archive. Volume reaching this node is
               the portion of archived data being searched (set by the percent
               on the archive→search edge). Cost ={" "}
-              <code>scannedTB × 1000 × $0.05</code>.
+              <code>scannedTB × 1000 × {currency.format(defaultPricing.archive_search_per_gb)}</code>.
             </p>
           </article>
           <article>
