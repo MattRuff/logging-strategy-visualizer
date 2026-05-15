@@ -4,7 +4,7 @@
 
 import { DeleteCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE, userPk, wlSk, ARCHIVE_PK } from "../shared/ddb.mjs";
-import { getCallerSub } from "../shared/auth.mjs";
+import { requireDatadogUser } from "../shared/userEmail.mjs";
 import { ok, badRequest, notFound, serverError } from "../shared/http.mjs";
 import { makeLogger } from "../shared/log.mjs";
 
@@ -12,7 +12,7 @@ export const handler = async (event, context) => {
   const log = makeLogger(event, context);
   log.info("deleteWorkload: request received");
   try {
-    const sub = getCallerSub(event);
+    const { sub } = await requireDatadogUser(event);
     const id = event?.pathParameters?.id;
     if (!id || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) {
       log.warn("deleteWorkload: invalid id", { id });

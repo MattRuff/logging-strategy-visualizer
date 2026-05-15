@@ -13,6 +13,17 @@ const POOL_ID = process.env.COGNITO_USER_POOL_ID;
 const cognito = new CognitoIdentityProviderClient({});
 const cache = new Map(); // sub -> email
 
+const ALLOWED_DOMAINS = (process.env.ALLOWED_EMAIL_DOMAINS ?? "datadoghq.com")
+  .split(",")
+  .map((d) => d.trim().toLowerCase())
+  .filter(Boolean);
+
+function emailDomainAllowed(email) {
+  const at = email.lastIndexOf("@");
+  if (at < 0) return false;
+  return ALLOWED_DOMAINS.includes(email.slice(at + 1).toLowerCase());
+}
+
 export async function resolveCallerEmail(event) {
   const claim = getCallerEmail(event);
   if (claim) return claim;
@@ -32,4 +43,20 @@ export async function resolveCallerEmail(event) {
     cache.set(sub, null);
     return null;
   }
+}
+
+// Defense-in-depth: the Cognito PreSignUp trigger blocks non-allowed domains at
+// account creation, but pre-existing users (or a misconfigured trigger) could
+// still get past API Gateway's JWT authorizer. Every handler must call this
+// before doing any work so a foreign-domain token can't read or write data.
+export async function requireDatadogUser(event) {
+  const sub = getCallerSub(event);
+  const email = await resolveCallerEmail(event);
+  if (!email || !emailDomainAllowed(email)) {
+    const err = new Error("Caller email not in allowed domain");
+    err.statusCode = 403;
+    err.publicMessage = "Forbidden";
+    throw err;
+  }
+  return { sub, email };
 }
